@@ -97,7 +97,7 @@ expect "score g is 19.05 mm" 0 "$BIN" score g
 has "adjacent key distance" "$TMP/out" "19.05"
 
 # layouts
-for l in qwerty-ansi ortho-5x12 split-4x6; do
+for l in qwerty-ansi qwerty-ansi-full ortho-5x12 split-4x6; do
     expect "layout $l" 0 "$BIN" layout "$l"
     has "layout $l name" "$TMP/out" "layout $l"
     expect "score on $l" 0 "$BIN" score -l "$l" Ctrl+c

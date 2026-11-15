@@ -96,9 +96,9 @@ static void test_layout_parser(void)
     /* the shipped layouts parse and give every key a finger */
     {
         static const char *const names[] = {"layouts/qwerty-ansi.layout", "layouts/ortho-5x12.layout",
-                                            "layouts/split-4x6.layout"};
+                                            "layouts/split-4x6.layout", "layouts/qwerty-ansi-full.layout"};
 
-        for (i = 0; i < 3u; i++) {
+        for (i = 0; i < 4u; i++) {
             size_t n;
             char *buf = t_read(&arena, names[i], &n);
 
@@ -289,6 +289,24 @@ static void test_samples(void)
     }
 }
 
+/* the full-size board: navigation block and numeric pad resolve, also under the names the importers meet */
+static void test_full_layout(void)
+{
+    CHECK(strcmp(fmt("Page_Up"), "pgup") == 0);
+    CHECK(strcmp(fmt("Ctrl+Prior"), "Ctrl+pgup") == 0);
+    CHECK(strcmp(fmt("Next"), "pgdn") == 0);
+    CHECK(strcmp(fmt("Super+Delete"), "Super+delete") == 0);
+    CHECK(strcmp(fmt("Ctrl+Alt+Del"), "Ctrl+Alt+delete") == 0);
+    CHECK(strcmp(fmt("Home"), "home") == 0);
+    CHECK(strcmp(fmt("End"), "end") == 0);
+    CHECK(strcmp(fmt("Insert"), "insert") == 0);
+    CHECK(strcmp(fmt("KP_5"), "kp5") == 0);
+    CHECK(strcmp(fmt("Ctrl+KP_Add"), "Ctrl+kpplus") == 0);
+    CHECK(strcmp(fmt("KP_Decimal"), "kpdot") == 0);
+    CHECK(strcmp(fmt("Num_Lock"), "numlock") == 0);   /* nochord keeps it out of suggestions, not out of parsing */
+    CHECK(fmt("Ctrl+nosuchkey")[0] == '!');
+}
+
 int main(void)
 {
     arena_init(&arena, g_mem, sizeof(g_mem));
@@ -304,5 +322,9 @@ int main(void)
     test_i3();
     test_dwl();
     test_samples();
+    if (!t_layout(&arena, "layouts/qwerty-ansi-full.layout", &L)) {
+        return 2;
+    }
+    test_full_layout();
     return t_report("test_parse");
 }

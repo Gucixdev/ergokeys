@@ -48,13 +48,14 @@ key units (1 unit = pitch = 19.05 mm) with y downward. A parse error names the l
 `layout NAME`: `-L DIR`, `$ERGOKEYS_LAYOUTS`, `./layouts`, the install directory; a name containing a slash or ending
 in `.layout` is read as a path.
 
-Three layouts ship: `qwerty-ansi` (60% board with function row and arrows), `ortho-5x12` (a 5 by 12 ortholinear
+Four layouts ship: `qwerty-ansi` (60% board with function row and arrows), `qwerty-ansi-full` (the same main block plus the navigation block, arrows as an inverted T and the numeric pad, 104 keys), `ortho-5x12` (a 5 by 12 ortholinear
 grid), `split-4x6` (two halves of 4 rows by 6 columns, column stagger, 3 thumb keys per half). The finger assignment
 and the home keys are explicit for every key, not derived, so a layout with an unusual fingering is just a different
 file. The stagger values of the split layout are approximate; edit the y values to match a real board.
 
-Not in the layouts: the navigation block and numeric pad (qwerty-ansi), and anything that sits on a layer on the
-compact boards. A shortcut that uses such a key is skipped on import and reported, never guessed.
+Not in the layouts: the navigation block and numeric pad on `qwerty-ansi` (use `qwerty-ansi-full`), print/scroll/pause
+anywhere, and anything that sits on a layer on the compact boards. The model has no hand shifting, so a reach to the
+nav block or the pad is a straight line from where the finger stands. A shortcut that uses such a key is skipped on import and reported, never guessed.
 
 Wide keys: a finger presses a wide key (space, shift, enter) at the point of the key nearest to where the finger
 already is (`layout_land_x`), not at its centre.

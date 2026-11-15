@@ -34,7 +34,15 @@ static const KeyAlias ek_aliases[] = {
     {"underscore", "-", 1},       {"plus", "=", 1},             {"braceleft", "[", 1},
     {"braceright", "]", 1},       {"bar", "\\", 1},             {"colon", ";", 1},
     {"quotedbl", "'", 1},         {"less", ",", 1},             {"greater", ".", 1},
-    {"question", "/", 1},         {"asciitilde", "`", 1}};
+    {"question", "/", 1},         {"asciitilde", "`", 1},       {"page_up", "pgup", 0},
+    {"prior", "pgup", 0},         {"pageup", "pgup", 0},        {"page_down", "pgdn", 0},
+    {"next", "pgdn", 0},          {"pagedown", "pgdn", 0},      {"del", "delete", 0},
+    {"ins", "insert", 0},         {"num_lock", "numlock", 0},   {"kp_0", "kp0", 0},
+    {"kp_1", "kp1", 0},           {"kp_2", "kp2", 0},           {"kp_3", "kp3", 0},
+    {"kp_4", "kp4", 0},           {"kp_5", "kp5", 0},           {"kp_6", "kp6", 0},
+    {"kp_7", "kp7", 0},           {"kp_8", "kp8", 0},           {"kp_9", "kp9", 0},
+    {"kp_add", "kpplus", 0},      {"kp_subtract", "kpminus", 0}, {"kp_multiply", "kpmul", 0},
+    {"kp_divide", "kpdiv", 0},    {"kp_decimal", "kpdot", 0}};
 
 static const char ek_shifted_chars[] = "!@#$%^&*()_+{}|:\"<>?~";
 static const char ek_shifted_base[] = "1234567890-=[]\\;',./`";
