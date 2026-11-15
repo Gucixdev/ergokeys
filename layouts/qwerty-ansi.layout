@@ -1,0 +1,72 @@
+# qwerty-ansi: full ANSI 60% board with the function row and the arrow keys, US QWERTY, touch-typing fingers.
+# Positions are in key units (1 unit = pitch = 19.05 mm), x to the right, y down, origin at the top left corner.
+# Standard ANSI stagger: Tab 1.5u, Caps Lock 1.75u, left Shift 2.25u, so each row starts further right.
+# Not on this board: the navigation block (Insert, Home, Page Up, Delete, End, Page Down), the print/scroll/pause
+# keys and the numeric pad; shortcuts that use them are skipped on import.
+name qwerty-ansi
+pitch 19.05
+
+key esc 0 0 1
+key f1 2 0 1
+key f2 3 0 1
+key f3 4 0 1
+key f4 5 0 1
+key f5 6.5 0 1
+key f6 7.5 0 1
+key f7 8.5 0 1
+key f8 9.5 0 1
+key f9 11 0 1
+key f10 12 0 1
+key f11 13 0 1
+key f12 14 0 1
+
+row 1.5 0 ` 1 2 3 4 5 6 7 8 9 0 - =
+key bksp 13 1.5 2
+key tab 0 2.5 1.5
+row 2.5 1.5 q w e r t y u i o p [ ]
+key \ 13.5 2.5 1.5
+key caps 0 3.5 1.75 nochord
+row 3.5 1.75 a s d f g h j k l ; '
+key enter 12.75 3.5 2.25
+key lshift 0 4.5 2.25
+row 4.5 2.25 z x c v b n m , . /
+key rshift 12.75 4.5 2.75
+key lctrl 0 5.5 1.25
+key lsuper 1.25 5.5 1.25
+key lalt 2.5 5.5 1.25
+key space 3.75 5.5 6.25
+key ralt 10 5.5 1.25
+key rsuper 11.25 5.5 1.25
+key menu 12.5 5.5 1.25 nochord
+key rctrl 13.75 5.5 1.25
+key left 15.5 5.5 1
+key down 16.5 5.5 1
+key right 17.5 5.5 1
+key up 16.5 4.5 1
+
+finger LP esc f1 ` 1 q a z tab caps lshift lctrl
+finger LR f2 2 w s x
+finger LM f3 3 e d c
+finger LI f4 f5 4 5 r t f g v b
+finger LT lalt lsuper
+finger RT space ralt rsuper
+finger RI f6 f7 6 7 y u h j n m left
+finger RM f8 8 i k , down up
+finger RR f9 9 o l . right
+finger RP f10 f11 f12 0 - = bksp p [ ] \ ; ' enter / rshift rctrl menu
+
+home LP a
+home LR s
+home LM d
+home LI f
+home LT space 6.0
+home RT space 7.75
+home RI j
+home RM k
+home RR l
+home RP ;
+
+mod ctrl lctrl rctrl
+mod alt lalt ralt
+mod super lsuper rsuper
+mod shift lshift rshift

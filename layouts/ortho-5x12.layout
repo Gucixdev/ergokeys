@@ -1,0 +1,46 @@
+# ortho-5x12: 5 rows by 12 columns ortholinear board (Preonic-like), QWERTY, columns not staggered.
+# One unit = 19.05 mm. Not on this board: - = [ ] \ ' and the function row (they sit on layers on such boards);
+# shortcuts that use them are skipped on import. Shift is on the left only (lshift) and the right (rshift) of the
+# bottom letter row; Ctrl, Super and Alt are on the left of the bottom row, Alt also on its right.
+name ortho-5x12
+pitch 19.05
+
+row 0 0 ` 1 2 3 4 5 6 7 8 9 0 bksp
+row 1 0 tab q w e r t y u i o p del
+row 2 0 esc a s d f g h j k l ; enter
+row 3 0 lshift z x c v b n m , . / rshift
+key lctrl 0 4 1
+key lsuper 1 4 1
+key lalt 2 4 1
+key space 5 4 2
+key ralt 8 4 1
+key left 9 4 1
+key down 10 4 1
+key up 11 4 1
+
+finger LP ` tab esc lshift lctrl 1 q a z lsuper
+finger LR 2 w s x lalt
+finger LM 3 e d c
+finger LI 4 r f v 5 t g b
+finger LT space
+finger RT ralt
+finger RI 6 y h n 7 u j m
+finger RM 8 i k ,
+finger RR 9 o l . left
+finger RP 0 p ; / bksp del enter rshift down up
+
+home LP a
+home LR s
+home LM d
+home LI f
+home LT space 5.5
+home RT space 6.5
+home RI j
+home RM k
+home RR l
+home RP ;
+
+mod ctrl lctrl
+mod alt lalt ralt
+mod super lsuper
+mod shift lshift rshift
