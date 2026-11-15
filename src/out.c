@@ -196,12 +196,29 @@ static int simulate_run(Arena *a, const Layout *L, const Weights *W, const Entri
     return 1;
 }
 
+/* an action for a table cell: at most 56 bytes, cut on a character boundary, "..." when cut (JSON output is never cut) */
+static const char *act_cell(const char *a, char *buf)
+{
+    size_t n = strlen(a);
+
+    if (n <= 56u) {
+        return a;
+    }
+    n = 53u;
+    while (n > 0 && ((unsigned char)a[n] & 0xC0u) == 0x80u) {
+        n--;
+    }
+    memcpy(buf, a, n);
+    memcpy(buf + n, "...", 4u);
+    return buf;
+}
+
 static void print_simulate(Arena *a, FILE *f, const Layout *L, const Entries *E, const Sim *S, const Conflicts *Cf,
                            const Report *R, int json, const char *file, int fmt)
 {
     u32 i, nw, idx[EK_WORST];
     f64 *score = EK_NEW(a, f64, E->n + 1u);
-    char t[96];
+    char t[96], cell[64];
 
     for (i = 0; score != NULL && i < E->n; i++) {
         score[i] = E->weight[i] * S->cost[i];
@@ -250,7 +267,7 @@ static void print_simulate(Arena *a, FILE *f, const Layout *L, const Entries *E,
     fprintf(f, "%8s %9s %6s  %-26s %s\n", "mm", "cost", "weight", "shortcut", "action");
     for (i = 0; i < E->n; i++) {
         chord_fmt(L, &E->chord[i], t, sizeof(t));
-        fprintf(f, "%8.2f %9.2f %6.4g  %-26s %s\n", S->mm[i], S->cost[i], E->weight[i], t, E->action[i]);
+        fprintf(f, "%8.2f %9.2f %6.4g  %-26s %s\n", S->mm[i], S->cost[i], E->weight[i], t, act_cell(E->action[i], cell));
     }
     fprintf(f, "\ntotal weighted by use: %.2f mm, cost %.2f\ntotal of each shortcut once: %.2f mm, cost %.2f\n", S->mm_total,
             S->cost_total, S->mm_plain, S->cost_plain);
@@ -259,7 +276,7 @@ static void print_simulate(Arena *a, FILE *f, const Layout *L, const Entries *E,
         for (i = 0; i < nw; i++) {
             chord_fmt(L, &E->chord[idx[i]], t, sizeof(t));
             fprintf(f, "%3u. %-26s cost %8.2f  mm %7.2f  %s\n", (unsigned)(i + 1u), t, S->cost[idx[i]],
-                    S->mm[idx[i]], E->action[idx[i]]);
+                    S->mm[idx[i]], act_cell(E->action[idx[i]], cell));
         }
     }
     if (Cf->total > 0) {
@@ -275,7 +292,7 @@ static void print_suggest(FILE *f, const Layout *L, const Entries *E, const Chor
                           int fmt, u32 seed, int anymods)
 {
     u32 i, changed = 0;
-    char t0[96], t1[96];
+    char t0[96], t1[96], cell[64];
     f64 pct = Sb->cost_total > 0.0 ? 100.0 * (Sb->cost_total - Sa->cost_total) / Sb->cost_total : 0.0;
 
     for (i = 0; i < E->n; i++) {
@@ -345,7 +362,7 @@ static void print_suggest(FILE *f, const Layout *L, const Entries *E, const Chor
         }
         chord_fmt(L, &E->chord[i], t0, sizeof(t0));
         chord_fmt(L, &nw[i], t1, sizeof(t1));
-        fprintf(f, "%-26s %-26s %9.2f %9.2f  %s\n", t0, t1, Sb->cost[i], Sa->cost[i], E->action[i]);
+        fprintf(f, "%-26s %-26s %9.2f %9.2f  %s\n", t0, t1, Sb->cost[i], Sa->cost[i], act_cell(E->action[i], cell));
     }
 }
 

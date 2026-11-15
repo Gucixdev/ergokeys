@@ -16,9 +16,11 @@ build/ergokeys help        # all subcommands and options
 
 ```sh
 build/ergokeys score Ctrl+c g "C-x C-s" Super+Shift+1     # shortcuts given on the command line
-build/ergokeys simulate tests/data/sample.tsv             # cost and travel of every shortcut in a file
+build/ergokeys simulate hyprland                          # the config of a program: hyprland, sway, i3 or dwl
+build/ergokeys simulate                                   # no argument: the first of those found on this machine
+build/ergokeys simulate tests/data/sample.tsv             # or any file: cost and travel of every shortcut in it
 build/ergokeys simulate ~/.config/hypr/hyprland.conf      # the format is detected from the content
-build/ergokeys suggest tests/data/i3.conf                 # propose cheaper bindings
+build/ergokeys suggest i3                                 # propose cheaper bindings (a program name or a file)
 build/ergokeys suggest FILE -o proposal.tsv               # write them out (refuses to overwrite)
 build/ergokeys layout split-4x6                           # show a layout and its finger map
 build/ergokeys config > my.conf                           # every weight with its meaning; edit, then use -c my.conf

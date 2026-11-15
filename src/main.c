@@ -4,9 +4,10 @@
  * usage: ergokeys SUBCOMMAND [OPTIONS] [ARGS]
  *
  * subcommands:
- *   simulate FILE   cost and finger travel (mm) of every shortcut in FILE, the total, the worst ten
+ *   simulate [FILE|PROGRAM]  cost and finger travel (mm) of every shortcut in FILE, or in the config of PROGRAM
+ *                   (hyprland, sway, i3, dwl; no argument: the first of them found), the total, the worst ten
  *   score KEYS...   the same for shortcuts given on the command line; quote a sequence: "C-x C-s"
- *   suggest FILE    propose rebindings that lower the total cost; no two actions share a chord
+ *   suggest [FILE|PROGRAM]  propose rebindings that lower the total cost; no two actions share a chord
  *   layout [NAME]   show a keyboard layout and its finger map (default qwerty-ansi)
  *   config          print every weight with its default and meaning, as a config file
  *   help            this text
@@ -328,13 +329,104 @@ static int load_weights(Arena *a, const Args *A, Weights *W)
     return 1;
 }
 
+/* A program name instead of a file: "ergokeys simulate hyprland" reads the config the program itself reads. With no
+ * argument the first program found in the table below is used. Only when the argument is not a readable file. */
+static char g_prog_path[512];
+
+/* dst = a b c (any may be ""), bounded; length, or -1 when it does not fit */
+static int join3(char *dst, size_t cap, const char *a, const char *b, const char *c)
+{
+    size_t la = strlen(a), lb = strlen(b), lc = strlen(c);
+
+    if (la + lb + lc + 1u > cap) {
+        return -1;
+    }
+    memcpy(dst, a, la);
+    memcpy(dst + la, b, lb);
+    memcpy(dst + la + lb, c, lc + 1u);
+    return (int)(la + lb + lc);
+}
+
+static int path_readable(const char *p)
+{
+    FILE *f = fopen(p, "rb");
+
+    if (f == NULL) {
+        return 0;
+    }
+    fclose(f);
+    return 1;
+}
+
+/* fill g_prog_path with the first readable candidate for the program; 1 when found */
+static int program_config(const char *name)
+{
+    static const char *const prog[] = {"hyprland", "hypr", "sway", "i3", "dwl", NULL};
+    static const char *const rel[][3] = {{"hypr/hyprland.conf", NULL, NULL}, {"hypr/hyprland.conf", NULL, NULL},
+                                         {"sway/config", NULL, NULL},        {"i3/config", NULL, NULL},
+                                         {"dwl/config.h", NULL, NULL}};
+    const char *home = getenv("HOME"), *xdg = getenv("XDG_CONFIG_HOME");
+    unsigned i, j;
+
+    for (i = 0; prog[i] != NULL; i++) {
+        if (strcmp(prog[i], name) != 0) {
+            continue;
+        }
+        for (j = 0; j < 4u; j++) {
+            int n = -1;
+
+            if (j == 0 && xdg != NULL && xdg[0] != '\0') {
+                n = join3(g_prog_path, sizeof(g_prog_path), xdg, "/", rel[i][0]);
+            } else if (j == 1 && home != NULL) {
+                n = join3(g_prog_path, sizeof(g_prog_path), home, "/.config/", rel[i][0]);
+            } else if (j == 2 && home != NULL && (strcmp(name, "i3") == 0 || strcmp(name, "sway") == 0)) {
+                {
+                char tail[16];
+
+                if (join3(tail, sizeof(tail), "/.", name, "/config") > 0) {
+                    n = join3(g_prog_path, sizeof(g_prog_path), home, tail, "");
+                }
+            }
+            } else if (j == 3 && strcmp(name, "dwl") == 0) {
+                n = join3(g_prog_path, sizeof(g_prog_path), "config.h", "", "");
+            }
+            if (n > 0 && path_readable(g_prog_path)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+/* simulate/suggest: turn "no argument" or a program name into the config file path in A->pos[0] */
+static int resolve_input(Args *A)
+{
+    static const char *const order[] = {"hyprland", "sway", "i3", "dwl", NULL};
+    unsigned i;
+
+    if (A->npos == 0) {
+        for (i = 0; order[i] != NULL; i++) {
+            if (program_config(order[i])) {
+                A->pos[0] = g_prog_path;
+                A->npos = 1;
+                return 1;
+            }
+        }
+        return 0;
+    }
+    if (A->npos == 1 && !path_readable(A->pos[0]) && strchr(A->pos[0], '/') == NULL && program_config(A->pos[0])) {
+        A->pos[0] = g_prog_path;
+    }
+    return 1;
+}
+
 static int load_entries(Arena *a, const Layout *L, const Args *A, Entries *E, Report *R, int *fmt)
 {
     size_t len = 0;
     char *buf;
 
     if (A->npos != 1) {
-        return usage_err("this subcommand takes exactly one FILE", NULL);
+        return usage_err("this subcommand takes exactly one FILE or program name", NULL);
     }
     buf = read_file(a, A->pos[0], &len);
     if (buf == NULL) {
@@ -568,6 +660,11 @@ int main(int argc, char **argv)
     }
     if (rc > 0) {
         return rc;
+    }
+    if (strcmp(sub, "simulate") == 0 || strcmp(sub, "suggest") == 0) {
+        if (!resolve_input(&A)) {
+            return usage_err("no FILE or program given and no hyprland, sway, i3 or dwl config found", NULL);
+        }
     }
     if (strcmp(sub, "simulate") == 0) {
         return cmd_simulate(&arena, &A);

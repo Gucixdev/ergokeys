@@ -9,5 +9,9 @@ make || exit 2
 echo "== tests"
 sh tests/run-tests || exit 1
 
-echo "== example"
-./build/ergokeys score Ctrl+c g "C-x C-s" Super+Shift+1
+echo "== example: simulate (the config of the first of hyprland, sway, i3, dwl found here, else the sample file)"
+if ./build/ergokeys simulate > /dev/null 2>&1; then src=""; else src=tests/data/sample.tsv; fi
+./build/ergokeys simulate $src 2> /dev/null | head -30
+echo
+echo "== example: what suggest would change"
+./build/ergokeys suggest $src 2> /dev/null | sed -n 1,5p

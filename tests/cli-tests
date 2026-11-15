@@ -47,7 +47,8 @@ sed -n '/HELP-BEGIN/,/HELP-END/p' src/main.c | sed '1d;$d' | sed 's/^ \* \{0,1\}
 same "--help is the header of main.c" "$TMP/help1" "$TMP/help-src"
 expect "--version" 0 "$BIN" --version
 has "version text" "$TMP/out" "ergokeys "
-expect "missing FILE" 1 "$BIN" simulate
+mkdir -p "$TMP/empty"
+HOME="$TMP/empty" XDG_CONFIG_HOME="" expect "no FILE and no config anywhere" 1 "$BIN" simulate
 expect "unknown option" 1 "$BIN" simulate --nope tests/data/sample.tsv
 expect "bad --mods" 1 "$BIN" suggest --mods sideways tests/data/sample.tsv
 expect "bad --iters" 1 "$BIN" suggest --iters abc tests/data/sample.tsv
@@ -108,6 +109,18 @@ done
 expect "layout from a path" 0 "$BIN" layout layouts/ortho-5x12.layout
 expect "layout with -L" 0 "$BIN" layout -L layouts split-4x6
 ERGOKEYS_LAYOUTS=layouts expect "layout via ERGOKEYS_LAYOUTS" 0 "$BIN" layout ortho-5x12
+
+# a program name instead of a file: its own config is found under $HOME/.config
+mkdir -p "$TMP/home/.config/hypr" "$TMP/home/.config/i3"
+cp tests/data/hyprland.conf "$TMP/home/.config/hypr/hyprland.conf"
+cp tests/data/i3.conf "$TMP/home/.config/i3/config"
+HOME="$TMP/home" XDG_CONFIG_HOME="" expect "simulate hyprland by name" 0 "$BIN" simulate hyprland
+has "program config path shown" "$TMP/out" "$TMP/home/.config/hypr/hyprland.conf"
+HOME="$TMP/home" XDG_CONFIG_HOME="" expect "suggest i3 by name" 0 "$BIN" suggest i3
+has "suggest read the i3 config" "$TMP/out" "config"
+HOME="$TMP/home" XDG_CONFIG_HOME="" expect "simulate with no argument takes the first config found" 0 "$BIN" simulate
+has "no argument used hyprland first" "$TMP/out" "hyprland.conf"
+HOME="$TMP/home" XDG_CONFIG_HOME="" expect "unknown name is a missing file" 2 "$BIN" simulate nosuchprogram
 
 # config
 expect "config" 0 "$BIN" config
