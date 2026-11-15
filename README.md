@@ -80,7 +80,11 @@ Not done or not verified:
   defaults come from common typing advice, not measurements. Not run on a real keyboard.
 - `suggest` has no notion of mnemonics; sequences and `fixed` actions are never moved, and annealing does not beat the
   greedy phase with the current cost model ([docs/DESIGN.md](docs/DESIGN.md) says why).
-- No Lean 4 proofs: no Lean toolchain installed here.
+- Lean 4 proofs ([lean4/Ergokeys.lean](lean4/Ergokeys.lean), run by `./run`) cover the bookkeeping of `suggest`: the
+  relocation and the swap, with the guards of `opt.c`, keep one action per chord, and the cost change the search
+  adds up equals the change of the total (exact integers; the C code adds f64). Not proved: the cost model itself
+  (floats and a square root), the conflict resolution at the start, and that the C code matches the model: that link
+  is only the review and the tests above.
 
 ## License
 
