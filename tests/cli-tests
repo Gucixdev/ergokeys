@@ -1,8 +1,8 @@
 #!/bin/sh
 # cli-tests - the binary as a user runs it: exit codes, --help, JSON validity, determinism, file output.
-# usage: sh tests/cli-tests [BINARY]      run from the repository root; BINARY defaults to build/ergokeys
-BIN=${1:-build/ergokeys}
-TMP=build/tmp/cli-$$
+# usage: sh tests/cli-tests [BINARY]      run from the repository root; BINARY defaults to out/ergokeys
+BIN=${1:-out/ergokeys}
+TMP=out/tmp/cli-$$
 mkdir -p "$TMP" || exit 2
 pass=0
 fail=0

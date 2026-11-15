@@ -43,17 +43,17 @@ now_us() { local t=$EPOCHREALTIME; echo $((${t/./} + 0)); }
 # cli ARGS... : runs ergokeys CLI_RUNS times after 3 warm-ups, sets MED MIN MAX in ms
 cli() {
 	local i t0 v=()
-	for ((i = 0; i < 3; i++)); do ./build/ergokeys "$@" > /dev/null 2>&1 || true; done
+	for ((i = 0; i < 3; i++)); do ./out/ergokeys "$@" > /dev/null 2>&1 || true; done
 	for ((i = 0; i < CLI_RUNS; i++)); do
 		t0=$(now_us)
-		./build/ergokeys "$@" > /dev/null 2>&1 || true
+		./out/ergokeys "$@" > /dev/null 2>&1 || true
 		v+=("$(($(now_us) - t0))")
 	done
 	read -r MED MIN MAX < <(printf '%s\n' "${v[@]}" | sort -n | awk '{ a[NR] = $1 } END { printf "%.2f %.2f %.2f\n", a[int((NR + 1) / 2)] / 1000, a[1] / 1000, a[NR] / 1000 }')
 }
 
 {
-	printf '\n### End to end: `build/ergokeys` as a process (start, parse the layout and the input, compute, print), %s runs, ms\n\n' "$CLI_RUNS"
+	printf '\n### End to end: `out/ergokeys` as a process (start, parse the layout and the input, compute, print), %s runs, ms\n\n' "$CLI_RUNS"
 	echo '| command | median | min | max |'
 	echo '|---|---|---|---|'
 } >> "$rpt"
@@ -72,8 +72,8 @@ row suggest tests/data/hyprland.conf --iters 0 -L layouts
 row suggest tests/data/sample.tsv --iters 0 -L layouts
 printf '\nQuality next to speed, `after:` line of `suggest` with the default 200000 annealing steps and with `--iters 0` (greedy only):\n\n' >> "$rpt"
 for f in tests/data/sample.tsv tests/data/hyprland.conf tests/data/i3.conf tests/data/dwl-config.h; do
-	a=$(./build/ergokeys suggest "$f" -L layouts 2> /dev/null | grep '^after:' || true)
-	b=$(./build/ergokeys suggest "$f" --iters 0 -L layouts 2> /dev/null | grep '^after:' || true)
+	a=$(./out/ergokeys suggest "$f" -L layouts 2> /dev/null | grep '^after:' || true)
+	b=$(./out/ergokeys suggest "$f" --iters 0 -L layouts 2> /dev/null | grep '^after:' || true)
 	if [ "$a" = "$b" ]; then verdict=identical; else verdict=DIFFERENT; fi
 	printf -- '- `%s`: default `%s`, greedy `%s`: %s\n' "$f" "$a" "$b" "$verdict" >> "$rpt"
 done

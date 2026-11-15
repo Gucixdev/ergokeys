@@ -159,7 +159,7 @@ patch to apply, and `--out` writes a TSV, never a config in the original format.
 | 4 | `suggest` found no conflict-free assignment (more actions than free chords) |
 
 `--help` prints the text between `HELP-BEGIN` and `HELP-END` in the header of `src/main.c`; the Makefile turns it into
-`build/help.inc`, and a test compares the binary's output with the header. `-o FILE` refuses to overwrite.
+`out/help.inc`, and a test compares the binary's output with the header. `-o FILE` refuses to overwrite.
 
 ## Tests and verification
 

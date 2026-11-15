@@ -69,6 +69,6 @@ means: it will move "workspace 1" off the `1` key. Read it as a list of cheap ch
 
 ## Other layouts
 
-`build/ergokeys layout qwerty-ansi-full` shows the 104-key board with navigation block and numeric pad;
+`out/ergokeys layout qwerty-ansi-full` shows the 104-key board with navigation block and numeric pad;
 `score -l qwerty-ansi-full Ctrl+Page_Up KP_5` scores shortcuts that the 60% board skips. Names as the importers
 meet them (`Page_Up`, `Prior`, `Next`, `Del`, `KP_7`, `KP_Add`) are accepted.

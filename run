@@ -4,7 +4,7 @@ set -u
 cd "$(dirname "$0")" || exit 2
 
 echo "== build"
-make || exit 2
+./build || exit 2
 
 echo "== tests"
 sh tests/run-tests || exit 1
@@ -13,8 +13,8 @@ echo "== lean proofs (suggest keeps one action per chord)"
 lean4/run || exit 1
 
 echo "== example: simulate (the config of the first of hyprland, sway, i3, dwl found here, else the sample file)"
-if ./build/ergokeys simulate > /dev/null 2>&1; then src=""; else src=tests/data/sample.tsv; fi
-./build/ergokeys simulate $src 2> /dev/null | head -30
+if ./out/ergokeys simulate > /dev/null 2>&1; then src=""; else src=tests/data/sample.tsv; fi
+./out/ergokeys simulate $src 2> /dev/null | head -30
 echo
 echo "== example: what suggest would change"
-./build/ergokeys suggest $src 2> /dev/null | sed -n 1,5p
+./out/ergokeys suggest $src 2> /dev/null | sed -n 1,5p

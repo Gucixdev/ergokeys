@@ -9,27 +9,28 @@ changes your configuration.
 ## Build and run
 
 ```sh
-./run                      # builds with make, runs every test, prints an example
-make                       # only the binary: build/ergokeys
-build/ergokeys help        # all subcommands and options
+./run                      # ./build, runs every test, prints an example
+make                       # only the binary: out/ergokeys
+out/ergokeys help        # all subcommands and options
 ```
 
 ```sh
-build/ergokeys score Ctrl+c g "C-x C-s" Super+Shift+1     # shortcuts given on the command line
-build/ergokeys simulate hyprland                          # the config of a program: hyprland, sway, i3 or dwl
-build/ergokeys simulate                                   # no argument: the first of those found on this machine
-build/ergokeys simulate tests/data/sample.tsv             # or any file: cost and travel of every shortcut in it
-build/ergokeys simulate ~/.config/hypr/hyprland.conf      # the format is detected from the content
-build/ergokeys suggest i3                                 # propose cheaper bindings (a program name or a file)
-build/ergokeys suggest FILE -o proposal.tsv               # write them out (refuses to overwrite)
-build/ergokeys layout split-4x6                           # show a layout and its finger map
-build/ergokeys config > my.conf                           # every weight with its meaning; edit, then use -c my.conf
+out/ergokeys score Ctrl+c g "C-x C-s" Super+Shift+1     # shortcuts given on the command line
+out/ergokeys simulate hyprland                          # the config of a program: hyprland, sway, i3 or dwl
+out/ergokeys simulate                                   # no argument: the first of those found on this machine
+out/ergokeys simulate tests/data/sample.tsv             # or any file: cost and travel of every shortcut in it
+out/ergokeys simulate ~/.config/hypr/hyprland.conf      # the format is detected from the content
+out/ergokeys suggest i3                                 # propose cheaper bindings (a program name or a file)
+out/ergokeys suggest FILE -o proposal.tsv               # write them out (refuses to overwrite)
+out/ergokeys layout split-4x6                           # show a layout and its finger map
+out/ergokeys config > my.conf                           # every weight with its meaning; edit, then use -c my.conf
 ```
 
 Options: `-l LAYOUT` (name or path of a `.layout` file), `-c WEIGHTS`, `-f FORMAT`, `--seed N`, `--iters N`,
 `--mods keep|any`, `--json`, `--strict`. Exit status: 0 done, 1 bad command line, 2 a file could not be read or is
 invalid, 3 `--strict` found skipped lines or conflicts, 4 `suggest` found no conflict-free assignment.
 `./install` builds and installs for the user (`~/.local`; `PREFIX=/usr/local` with sudo for the system).
+`./build` compiles what changed (`BUILD_FORCE=1 ./build` rebuilds everything); `./run` and `./install` call it, `./install -rebuild` starts from a full rebuild.
 
 ## Examples
 

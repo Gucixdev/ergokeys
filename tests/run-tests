@@ -6,8 +6,8 @@
 # Compilers used: gcc and clang, whichever are installed. Per compiler: the C89 pedantic build of the binary,
 # the unit suites with -fsanitize=address,undefined, and the unit suites plain at -O2.
 cd "$(dirname "$0")/.." || exit 2
-mkdir -p build/tmp
-make -s build/help.inc || exit 2
+mkdir -p out/tmp
+make -s out/help.inc || exit 2
 
 failed=""
 ran=0
@@ -39,12 +39,12 @@ SAN="-fsanitize=address,undefined -fno-sanitize-recover=undefined -DEK_ASAN -g -
 if [ "$1" = fuzz ]; then
     iters=${FUZZ_ITERS:-300000}
     for cc in $compilers; do
-        run "fuzz-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/fuzz_parse.c -o build/fuzz-$cc -lm && ./build/fuzz-$cc $iters 11 && ./build/fuzz-$cc $iters 12"
+        run "fuzz-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/fuzz_parse.c -o out/fuzz-$cc -lm && ./out/fuzz-$cc $iters 11 && ./out/fuzz-$cc $iters 12"
     done
-    if command -v clang >/dev/null 2>&1 && clang -fsanitize=fuzzer,address -x c /dev/null -o build/tmp/probe >/dev/null 2>&1; then
-        mkdir -p build/corpus
-        cp tests/data/* layouts/*.layout config/default.conf build/corpus/
-        run "libfuzzer" sh -c "clang -fsanitize=fuzzer,address,undefined -DEK_ASAN -DEK_LIBFUZZER -g -O1 -Wno-unused-function tests/fuzz_parse.c -o build/fuzz-lib -lm && ./build/fuzz-lib build/corpus -max_total_time=${FUZZ_SECONDS:-30} -max_len=4096 -print_final_stats=0 2>&1 | tail -3"
+    if command -v clang >/dev/null 2>&1 && clang -fsanitize=fuzzer,address -x c /dev/null -o out/tmp/probe >/dev/null 2>&1; then
+        mkdir -p out/corpus
+        cp tests/data/* layouts/*.layout config/default.conf out/corpus/
+        run "libfuzzer" sh -c "clang -fsanitize=fuzzer,address,undefined -DEK_ASAN -DEK_LIBFUZZER -g -O1 -Wno-unused-function tests/fuzz_parse.c -o out/fuzz-lib -lm && ./out/fuzz-lib out/corpus -max_total_time=${FUZZ_SECONDS:-30} -max_len=4096 -print_final_stats=0 2>&1 | tail -3"
     else
         echo "libFuzzer is not available with this clang; skipped"
     fi
@@ -55,29 +55,29 @@ fi
 
 for cc in $compilers; do
     echo "== $cc"
-    run "c89-$cc" sh -c "$cc -std=c89 -pedantic -Wall -Wextra -Werror -ffp-contract=off -O2 -Ibuild -DEK_DATADIR='\"/usr/local/share/ergokeys\"' src/main.c -o build/ergokeys-$cc"
+    run "c89-$cc" sh -c "$cc -std=c89 -pedantic -Wall -Wextra -Werror -ffp-contract=off -O2 -Iout -DEK_DATADIR='\"/usr/local/share/ergokeys\"' src/main.c -o out/ergokeys-$cc"
     # no direct call into the heap allocator from our code: libc's stdio may allocate inside, the code never asks
-    run "no-malloc-$cc" sh -c "$cc -std=c89 -pedantic -O2 -Ibuild -Wno-unused-function -c src/main.c -o build/tmp/main-$cc.o && ! nm -u build/tmp/main-$cc.o | grep -E ' (malloc|calloc|realloc|free|posix_memalign|mmap|brk|sbrk)(@|\$)'"
+    run "no-malloc-$cc" sh -c "$cc -std=c89 -pedantic -O2 -Iout -Wno-unused-function -c src/main.c -o out/tmp/main-$cc.o && ! nm -u out/tmp/main-$cc.o | grep -E ' (malloc|calloc|realloc|free|posix_memalign|mmap|brk|sbrk)(@|\$)'"
     for t in test_model test_parse test_opt; do
-        run "$t-san-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/$t.c -o build/$t-san-$cc -lm && ./build/$t-san-$cc"
-        run "$t-plain-$cc" sh -c "$cc -std=gnu99 $WARN -O2 -ffp-contract=off tests/$t.c -o build/$t-$cc -lm && ./build/$t-$cc"
+        run "$t-san-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/$t.c -o out/$t-san-$cc -lm && ./out/$t-san-$cc"
+        run "$t-plain-$cc" sh -c "$cc -std=gnu99 $WARN -O2 -ffp-contract=off tests/$t.c -o out/$t-$cc -lm && ./out/$t-$cc"
     done
-    run "fuzz-quick-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/fuzz_parse.c -o build/fuzz-$cc -lm && ./build/fuzz-$cc ${FUZZ_QUICK:-20000} 1"
+    run "fuzz-quick-$cc" sh -c "$cc -std=gnu99 $WARN $SAN tests/fuzz_parse.c -o out/fuzz-$cc -lm && ./out/fuzz-$cc ${FUZZ_QUICK:-20000} 1"
 done
 
 echo "== cli"
 first=$(echo $compilers | cut -d' ' -f1)
-run "cli-$first" sh tests/cli-tests build/ergokeys-$first
+run "cli-$first" sh tests/cli-tests out/ergokeys-$first
 for cc in $compilers; do
     if [ "$cc" != "$first" ]; then
-        run "cli-$cc" sh tests/cli-tests build/ergokeys-$cc
+        run "cli-$cc" sh tests/cli-tests out/ergokeys-$cc
     fi
 done
 
 # the two compilers must print the same suggestion: results do not depend on the host's math library
 if [ "$(echo $compilers | wc -w)" -gt 1 ]; then
     run "same-output" sh -c 'for f in sample.tsv hyprland.conf i3.conf dwl-config.h; do
-        a=$(build/ergokeys-gcc suggest tests/data/$f 2>&1); b=$(build/ergokeys-clang suggest tests/data/$f 2>&1)
+        a=$(out/ergokeys-gcc suggest tests/data/$f 2>&1); b=$(out/ergokeys-clang suggest tests/data/$f 2>&1)
         [ "$a" = "$b" ] || { echo "gcc and clang differ on $f"; exit 1; }
     done'
 fi

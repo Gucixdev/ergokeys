@@ -139,7 +139,7 @@ shortcut_cost, Ctrl+Shift+key: median 822 ns per call (min 795, max 890; 8 runs 
 
 shortcut_cost, Ctrl+Shift+key: median 385 ns per call (min 372, max 416; 8 runs of 200000 calls, checksum 184247340.3)
 
-### End to end: `build/ergokeys` as a process (start, parse the layout and the input, compute, print), 25 runs, ms
+### End to end: `out/ergokeys` as a process (start, parse the layout and the input, compute, print), 25 runs, ms
 
 | command | median | min | max |
 |---|---|---|---|
