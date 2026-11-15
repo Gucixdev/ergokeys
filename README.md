@@ -69,8 +69,8 @@ Details and the reasons for each choice: [docs/DESIGN.md](docs/DESIGN.md).
 Tested under gcc and clang, plain and with address and undefined-behaviour sanitizers: the cost model against values
 worked out by hand (58 checks), the parsers (146), `suggest` properties on up to 500 shortcuts (6880: no conflict,
 never a higher cost, deterministic, no heap use, equal to the independently computed optimum), the CLI (101), and fuzzing
-of the parsers (160000 checks in `./run`). Benchmarks: [bench/RESULTS.md](bench/RESULTS.md), `suggest` on 500 shortcuts
-takes 10 to 21 ms.
+of the parsers (160000 checks in `./run`). Benchmarks: [docs/bench.md](docs/bench.md) (`bench/run-bench`), `suggest` on 500 shortcuts
+takes 8 to 25 ms, and its default annealing adds nothing on the shipped inputs (see Findings there).
 
 Not done or not verified:
 
