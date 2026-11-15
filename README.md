@@ -27,7 +27,7 @@ build/ergokeys config > my.conf                           # every weight with it
 Options: `-l LAYOUT` (name or path of a `.layout` file), `-c WEIGHTS`, `-f FORMAT`, `--seed N`, `--iters N`,
 `--mods keep|any`, `--json`, `--strict`. Exit status: 0 done, 1 bad command line, 2 a file could not be read or is
 invalid, 3 `--strict` found skipped lines or conflicts, 4 `suggest` found no conflict-free assignment.
-`make install` copies the binary and the layouts to `$PREFIX` (default `/usr/local`).
+`./install` builds and installs for the user (`~/.local`; `PREFIX=/usr/local` with sudo for the system).
 
 ## Examples
 
