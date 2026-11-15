@@ -334,23 +334,23 @@ static int load_entries(Arena *a, const Layout *L, const Args *A, Entries *E, Re
     char *buf;
 
     if (A->npos != 1) {
-        return usage_err("this subcommand takes exactly one FILE", NULL) == EK_USAGE ? 1 : 1;
+        return usage_err("this subcommand takes exactly one FILE", NULL);
     }
     buf = read_file(a, A->pos[0], &len);
     if (buf == NULL) {
-        return 2;
+        return EK_IO;
     }
     *fmt = A->fmt == FMT_AUTO ? detect_format(buf, len) : A->fmt;
     report_init(R);
     if (!entries_init(a, E, import_capacity(buf, len)) || !import_any(*fmt, a, L, buf, len, E, R)) {
         fprintf(stderr, "ergokeys: out of memory reading %s\n", A->pos[0]);
-        return 2;
+        return EK_IO;
     }
     if (E->n == 0) {
         print_skips(stderr, R, 0, A->pos[0]);
         fprintf(stderr, "ergokeys: no shortcuts found in %s (format %s); try --format\n", A->pos[0],
                 ek_format_name[*fmt]);
-        return 2;
+        return EK_IO;
     }
     print_skips(stderr, R, 0, A->pos[0]);
     return 0;
@@ -371,7 +371,7 @@ static int cmd_simulate(Arena *a, const Args *A)
     }
     rc = load_entries(a, L, A, &E, R, &fmt);
     if (rc != 0) {
-        return rc == 1 ? EK_USAGE : EK_IO;
+        return rc;
     }
     if (!conflicts_find(a, L, &E, Cf) || !simulate_run(a, L, &W, &E, E.chord, &S)) {
         fprintf(stderr, "ergokeys: out of memory\n");
@@ -477,7 +477,7 @@ static int cmd_suggest(Arena *a, const Args *A)
     }
     rc = load_entries(a, L, A, &E, R, &fmt);
     if (rc != 0) {
-        return rc == 1 ? EK_USAGE : EK_IO;
+        return rc;
     }
     nw = EK_NEW(a, Chord, E.n + 1u);
     if (nw == NULL || !conflicts_find(a, L, &E, Cf)) {

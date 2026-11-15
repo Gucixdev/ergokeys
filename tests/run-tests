@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC2086,SC2016  # $compilers is a word list on purpose; sh -c scripts are single-quoted
 # run-tests - every test of ergokeys, run from the repository root.
 #   sh tests/run-tests         build and run all suites; a failing suite does not stop the others
 #   sh tests/run-tests fuzz    only the parser fuzzers, FUZZ_ITERS inputs per compiler (default 300000)
@@ -34,7 +35,6 @@ done
 
 WARN="-Wall -Wextra -Werror -Wno-unused-function"
 SAN="-fsanitize=address,undefined -fno-sanitize-recover=undefined -DEK_ASAN -g -O1"
-FUZZ_ITERS=${FUZZ_ITERS:-}
 
 if [ "$1" = fuzz ]; then
     iters=${FUZZ_ITERS:-300000}

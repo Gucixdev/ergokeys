@@ -34,9 +34,11 @@ fuzz: build/ergokeys
 bench: build/ergokeys
 	sh bench/run-bench
 
-install: build/ergokeys
+# the layout directory is compiled in, so the installed binary is built for this PREFIX, not copied from build/
+install: $(SRC) | build
+	$(CC) $(STD) $(CFLAGS) -Ibuild -DEK_DATADIR='"$(DATADIR)"' src/main.c -o build/ergokeys.install
 	mkdir -p $(DESTDIR)$(PREFIX)/bin $(DESTDIR)$(DATADIR)/layouts
-	cp build/ergokeys $(DESTDIR)$(PREFIX)/bin/ergokeys
+	cp build/ergokeys.install $(DESTDIR)$(PREFIX)/bin/ergokeys
 	cp layouts/*.layout $(DESTDIR)$(DATADIR)/layouts/
 
 .PHONY: all test fuzz bench install
