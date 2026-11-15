@@ -2,7 +2,7 @@
 #   make          build/ergokeys
 #   make test     every test under gcc and clang, with sanitizers, plus the C89 pedantic build
 #   make fuzz     the parser fuzz targets with many more iterations (make test runs them with fewer)
-#   make bench    bench/bench.c, appends to bench/RESULTS.md
+#   make bench    bench/run-bench (bench/bench.c and the real binary), appends to docs/bench.md
 #   make install  PREFIX (default /usr/local): binary and layouts
 CC ?= gcc
 PREFIX ?= /usr/local
@@ -32,7 +32,7 @@ fuzz: build/ergokeys
 	FUZZ_ITERS=$${FUZZ_ITERS:-300000} sh tests/run-tests fuzz
 
 bench: build/ergokeys
-	sh bench/run-bench
+	bench/run-bench
 
 # the layout directory is compiled in, so the installed binary is built for this PREFIX, not copied from build/
 install: $(SRC) | build

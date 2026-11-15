@@ -173,7 +173,7 @@ patch to apply, and `--out` writes a TSV, never a config in the original format.
   every subcommand with `python3 -m json.tool`, determinism, `--out` round trip (the cost `suggest` prints for the
   proposed bindings equals the cost `simulate` prints for the file it wrote).
 - `tests/data/` holds real-shaped sample configs for each importer, taken from the stock configs of those programs.
-- `bench/bench.c` and `bench/run-bench`: median and minimum of repeated runs, appended to `bench/RESULTS.md`.
+- `bench/bench.c` and `bench/run-bench`: median, minimum and maximum of repeated runs after a warm-up, appended to `docs/bench.md` (`bench/RESULTS.md` is the older log).
 
 Lean 4: the properties that could be proved (the cost is non-negative, the cost of a chord equals the cost of its mirror
 image on a symmetric layout, a greedy move strictly lowers the total) were not proved, because no Lean toolchain

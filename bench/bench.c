@@ -1,5 +1,6 @@
 /* bench.c - time suggest on a set of shortcuts and the cost model on its own.
- *   bench [N [RUNS]]    N shortcuts (default 500), RUNS repetitions per row (default 9)
+ *   bench [N [RUNS [LAYOUT]]]   N shortcuts (default 500), RUNS repetitions per row (default 9, after one warm-up
+ *                               run that is not counted), LAYOUT file (default layouts/qwerty-ansi.layout)
  * Prints one markdown table row per measurement: median and minimum wall time over RUNS runs, and the quality
  * reached. The input is synthetic but fixed: the same seed always gives the same shortcuts. */
 #define _POSIX_C_SOURCE 199309L
@@ -98,6 +99,7 @@ static void row(const char *name, const Entries *E, const OptCfg *C, u32 runs)
     u32 i;
     f64 before = total(E, E->chord);
 
+    (void)suggest(&arena, &L, &W, E, C, out, &S); /* warm-up: caches and page faults of the arena */
     for (i = 0; i < runs; i++) {
         f64 t0 = now();
         int rc = suggest(&arena, &L, &W, E, C, out, &S);
@@ -109,8 +111,8 @@ static void row(const char *name, const Entries *E, const OptCfg *C, u32 runs)
         }
     }
     qsort(t, runs, sizeof(f64), cmp_f64);
-    printf("| %-30s | %4u | %9.2f | %9.2f | %9.1f | %9.1f | %6.1f%% |\n", name, (unsigned)E->n, t[runs / 2] * 1e3,
-           t[0] * 1e3, before, total(E, out), 100.0 * (before - total(E, out)) / before);
+    printf("| %-30s | %4u | %9.2f | %9.2f | %9.2f | %9.1f | %9.1f | %6.1f%% |\n", name, (unsigned)E->n, t[runs / 2] * 1e3,
+           t[0] * 1e3, t[runs - 1u] * 1e3, before, total(E, out), 100.0 * (before - total(E, out)) / before);
 }
 
 int main(int argc, char **argv)
@@ -128,16 +130,16 @@ int main(int argc, char **argv)
         runs = 1u;
     }
     arena_init(&arena, g_mem, sizeof(g_mem));
-    if (!t_layout_load("layouts/qwerty-ansi.layout")) {
+    if (!t_layout_load(argc > 3 ? argv[3] : "layouts/qwerty-ansi.layout")) {
         return 2;
     }
     weights_defaults(&W);
     make_entries(&E, n);
 
-    printf("| %-30s | %4s | %9s | %9s | %9s | %9s | %7s |\n", "case", "n", "median ms", "min ms", "cost in", "cost out",
-           "lower");
-    printf("|%s|%s|%s|%s|%s|%s|%s|\n", "--------------------------------", "------", "-----------", "-----------",
-           "-----------", "-----------", "---------");
+    printf("| %-30s | %4s | %9s | %9s | %9s | %9s | %9s | %7s |\n", "case", "n", "median ms", "min ms", "max ms",
+           "cost in", "cost out", "lower");
+    printf("|%s|%s|%s|%s|%s|%s|%s|%s|\n", "--------------------------------", "------", "-----------", "-----------",
+           "-----------", "-----------", "-----------", "---------");
     memset(&C, 0, sizeof(C));
     C.seed = 1;
     C.passes = 30;
@@ -160,13 +162,22 @@ int main(int argc, char **argv)
     memset(&c, 0, sizeof(c));
     c.nsteps = 1;
     c.mods[0] = M_CTRL | M_SHIFT;
-    t0 = now();
-    for (i = 0; i < reps; i++) {
-        c.key[0] = (u8)(i % L.nkeys);
-        sink += shortcut_cost(&L, &W, &c).cost;
+    {
+        f64 per[9];
+        u32 r;
+
+        for (r = 0; r < 9u; r++) { /* the first of the 9 is a warm-up and not counted */
+            t0 = now();
+            for (i = 0; i < reps; i++) {
+                c.key[0] = (u8)(i % L.nkeys);
+                sink += shortcut_cost(&L, &W, &c).cost;
+            }
+            t1 = now();
+            per[r] = (t1 - t0) / (f64)reps * 1e9;
+        }
+        qsort(per + 1, 8, sizeof(f64), cmp_f64);
+        printf("\nshortcut_cost, Ctrl+Shift+key: median %.0f ns per call (min %.0f, max %.0f; 8 runs of %u calls, checksum %.1f)\n",
+               (per[4] + per[5]) / 2.0, per[1], per[8], (unsigned)reps, sink);
     }
-    t1 = now();
-    printf("\nshortcut_cost, Ctrl+Shift+key: %.0f ns per call (%u calls, checksum %.1f)\n", (t1 - t0) / (f64)reps * 1e9,
-           (unsigned)reps, sink);
     return 0;
 }

@@ -1,24 +1,88 @@
-#!/bin/sh
-# shellcheck disable=SC2016  # the README text contains backticks
-# run-bench - time suggest on 500 shortcuts with every compiler that is installed and append the tables to
-# bench/RESULTS.md (date, commit, machine, compiler). Run from the repository root: sh bench/run-bench
-cd "$(dirname "$0")/.." || exit 2
-mkdir -p build
-out=bench/RESULTS.md
-commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+#!/usr/bin/env bash
+# run-bench - measure ergokeys and append the tables to docs/bench.md. No arguments (`make bench` calls it).
+# It lives here and not in the root because bench/ is the directory of bench.c.
+#   1. in-process (bench/bench.c, every installed C compiler): suggest on 500 synthetic shortcuts on each shipped layout,
+#      greedy and annealing, and the cost of one shortcut_cost call, which is the hot path of everything
+#   2. end to end: the real binary on the shipped layouts and the three config importers, process start included
+# Each in-process row: 1 warm-up run, then 11 runs (shortcut_cost: 8). End to end: 3 warm-up runs, then 25 runs.
+# Nothing outside the repository and a private temp directory is touched; no network.
+set -euo pipefail
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+INPROC_RUNS=11
+CLI_RUNS=25
+
+command -v make > /dev/null && command -v gcc > /dev/null || { echo "run-bench: make and gcc are needed" >&2; exit 2; }
+make > /dev/null
+T=$(mktemp -d "${TMPDIR:-/tmp}/ergokeys-bench.XXXXXX")
+trap 'rm -rf -- "$T"' EXIT
+
+out=docs/bench.md
+commit=$(git rev-parse --short HEAD 2> /dev/null || echo unknown)
 dirty=""
-[ -z "$(git status --porcelain src bench/bench.c 2>/dev/null)" ] || dirty=" (uncommitted changes in src)"
-cpu=$(sed -n 's/^model name[^:]*: *//p' /proc/cpuinfo 2>/dev/null | head -1)
-[ -n "$cpu" ] || cpu=$(uname -m)
-cores=$(nproc 2>/dev/null || echo "?")
-[ -s "$out" ] || printf '# Benchmark log\n\nEvery row is the median and minimum wall time of repeated runs of `suggest`; `cost in` and `cost out` are the\nweighted totals before and after. Appended by `bench/run-bench`.\n' >"$out"
+[ -z "$(git status --porcelain src bench/bench.c 2> /dev/null)" ] || dirty=" (uncommitted changes in src)"
+cpu=$(sed -n 's/^model name[^:]*: *//p' /proc/cpuinfo | head -1)
+rpt=$T/report
+{
+	printf '\n## %s, commit %s%s\n\n' "$(date +%F)" "$commit" "$dirty"
+	printf 'machine: %s, %s threads, %s, shared with the owner'"'"'s editors\n' "$cpu" "$(nproc)" "$(uname -sr)"
+	printf 'load average at start: %s\n' "$(cut -d' ' -f1-3 /proc/loadavg)"
+	printf 'command: `bench/run-bench`; in-process build `cc -std=gnu99 -O2 -ffp-contract=off bench/bench.c -lm`, program build as in the Makefile (`-std=c89 -O2`)\n'
+} > "$rpt"
+
 for cc in gcc clang; do
-    command -v "$cc" >/dev/null 2>&1 || continue
-    "$cc" -std=gnu99 -O2 -ffp-contract=off -Wno-unused-function bench/bench.c -o "build/bench-$cc" -lm || exit 2
-    ver=$("$cc" --version | head -1)
-    {
-        printf '\n## %s, commit %s%s\n\n' "$(date +%F)" "$commit" "$dirty"
-        printf 'machine: %s, %s cores; compiler: %s, -O2; 500 shortcuts, 9 runs per row\n\n' "$cpu" "$cores" "$ver"
-        "./build/bench-$cc" 500 9
-    } | tee -a "$out"
+	command -v "$cc" > /dev/null 2>&1 || continue
+	"$cc" -std=gnu99 -O2 -ffp-contract=off -Wno-unused-function bench/bench.c -o "$T/bench-$cc" -lm
+	printf '\n### In process, %s, 500 synthetic shortcuts (fixed seed), %s runs per row, ms\n' "$("$cc" --version | head -1)" "$INPROC_RUNS" >> "$rpt"
+	for l in layouts/*.layout; do
+		printf '\n`%s`\n\n' "$l" >> "$rpt"
+		"$T/bench-$cc" 500 "$INPROC_RUNS" "$l" >> "$rpt"
+	done
 done
+
+now_us() { local t=$EPOCHREALTIME; echo $((${t/./} + 0)); }
+# cli ARGS... : runs ergokeys CLI_RUNS times after 3 warm-ups, sets MED MIN MAX in ms
+cli() {
+	local i t0 v=()
+	for ((i = 0; i < 3; i++)); do ./build/ergokeys "$@" > /dev/null 2>&1 || true; done
+	for ((i = 0; i < CLI_RUNS; i++)); do
+		t0=$(now_us)
+		./build/ergokeys "$@" > /dev/null 2>&1 || true
+		v+=("$(($(now_us) - t0))")
+	done
+	read -r MED MIN MAX < <(printf '%s\n' "${v[@]}" | sort -n | awk '{ a[NR] = $1 } END { printf "%.2f %.2f %.2f\n", a[int((NR + 1) / 2)] / 1000, a[1] / 1000, a[NR] / 1000 }')
+}
+
+{
+	printf '\n### End to end: `build/ergokeys` as a process (start, parse the layout and the input, compute, print), %s runs, ms\n\n' "$CLI_RUNS"
+	echo '| command | median | min | max |'
+	echo '|---|---|---|---|'
+} >> "$rpt"
+row() {
+	cli "$@"
+	printf '| `ergokeys %s` | %s | %s | %s |\n' "$*" "$MED" "$MIN" "$MAX" >> "$rpt"
+}
+row --version
+for l in layouts/*.layout; do row simulate tests/data/sample.tsv -l "$(basename "$l" .layout)" -L layouts; done
+for l in layouts/*.layout; do row suggest tests/data/sample.tsv -l "$(basename "$l" .layout)" -L layouts; done
+row simulate tests/data/hyprland.conf -L layouts
+row simulate tests/data/i3.conf -L layouts
+row simulate tests/data/dwl-config.h -L layouts
+row suggest tests/data/hyprland.conf -L layouts
+row suggest tests/data/hyprland.conf --iters 0 -L layouts
+row suggest tests/data/sample.tsv --iters 0 -L layouts
+printf '\nQuality next to speed, `after:` line of `suggest` with the default 200000 annealing steps and with `--iters 0` (greedy only):\n\n' >> "$rpt"
+for f in tests/data/sample.tsv tests/data/hyprland.conf tests/data/i3.conf tests/data/dwl-config.h; do
+	a=$(./build/ergokeys suggest "$f" -L layouts 2> /dev/null | grep '^after:' || true)
+	b=$(./build/ergokeys suggest "$f" --iters 0 -L layouts 2> /dev/null | grep '^after:' || true)
+	if [ "$a" = "$b" ]; then verdict=identical; else verdict=DIFFERENT; fi
+	printf -- '- `%s`: default `%s`, greedy `%s`: %s\n' "$f" "$a" "$b" "$verdict" >> "$rpt"
+done
+printf '\nsample.tsv has %s shortcuts; hyprland.conf %s lines, i3.conf %s, dwl-config.h %s.\n' "$(grep -vc '^#' tests/data/sample.tsv)" "$(wc -l < tests/data/hyprland.conf)" "$(wc -l < tests/data/i3.conf)" "$(wc -l < tests/data/dwl-config.h)" >> "$rpt"
+printf 'load average at end: %s\n' "$(cut -d' ' -f1-3 /proc/loadavg)" >> "$rpt"
+
+mkdir -p docs
+if [ ! -s "$out" ]; then
+	printf '# ergokeys benchmarks\n\nAppended by `bench/run-bench`. The older log of `make bench` is bench/RESULTS.md. Findings first, then the log.\n\n## Findings\n\n(none yet)\n\n## Results log\n' > "$out"
+fi
+cat "$rpt" >> "$out"
+cat "$rpt"
