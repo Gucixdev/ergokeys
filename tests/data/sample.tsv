@@ -1,0 +1,13 @@
+# action	chord	weight
+save	Ctrl+s	50
+copy	Ctrl+c	80
+paste	Ctrl+v	80
+undo	Ctrl+z	40
+close window	Super+q	30
+terminal	Super+Return	60
+workspace 1	Super+1	40
+workspace 9	Super+9	5
+screenshot	Super+Shift+s	10
+emacs save	C-x C-s	20
+bad key	Ctrl+Nonsense	1
+no tab here
