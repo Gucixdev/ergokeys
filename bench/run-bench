@@ -1,0 +1,23 @@
+#!/bin/sh
+# run-bench - time suggest on 500 shortcuts with every compiler that is installed and append the tables to
+# bench/RESULTS.md (date, commit, machine, compiler). Run from the repository root: sh bench/run-bench
+cd "$(dirname "$0")/.." || exit 2
+mkdir -p build
+out=bench/RESULTS.md
+commit=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+dirty=""
+[ -z "$(git status --porcelain src bench/bench.c 2>/dev/null)" ] || dirty=" (uncommitted changes in src)"
+cpu=$(sed -n 's/^model name[^:]*: *//p' /proc/cpuinfo 2>/dev/null | head -1)
+[ -n "$cpu" ] || cpu=$(uname -m)
+cores=$(nproc 2>/dev/null || echo "?")
+[ -f "$out" ] || printf '# Benchmark log\n\nEvery row is the median and minimum wall time of repeated runs of `suggest`; `cost in` and `cost out` are the\nweighted totals before and after. Appended by `bench/run-bench`.\n' >"$out"
+for cc in gcc clang; do
+    command -v "$cc" >/dev/null 2>&1 || continue
+    "$cc" -std=gnu99 -O2 -ffp-contract=off -Wno-unused-function bench/bench.c -o "build/bench-$cc" -lm || exit 2
+    ver=$("$cc" --version | head -1)
+    {
+        printf '\n## %s, commit %s%s\n\n' "$(date +%F)" "$commit" "$dirty"
+        printf 'machine: %s, %s cores; compiler: %s, -O2; 500 shortcuts, 9 runs per row\n\n' "$cpu" "$cores" "$ver"
+        "./build/bench-$cc" 500 9
+    } | tee -a "$out"
+done

@@ -130,6 +130,119 @@ static void test_properties(void)
     }
 }
 
+static int cmp_asc(const void *a, const void *b)
+{
+    f64 x = *(const f64 *)a, y = *(const f64 *)b;
+
+    return x < y ? -1 : (x > y ? 1 : 0);
+}
+
+static int cmp_desc(const void *a, const void *b)
+{
+    return -cmp_asc(a, b);
+}
+
+/* With each action's modifiers kept, the actions of one modifier set only compete for keys, and the cost of an
+ * action is its weight times the cost of its key: the cheapest keys go to the heaviest weights (rearrangement
+ * inequality). That gives the exact optimum to compare the search against. */
+static void test_reaches_optimum(void)
+{
+    u32 sizes[] = {30, 120, 400};
+    u32 s;
+
+    for (s = 0; s < 3u; s++) {
+        Entries E;
+        Chord *out;
+        OptCfg C;
+        OptStat S;
+        f64 best = 0.0;
+        u32 m, i, k;
+        size_t mark = arena_mark(&arena);
+        f64 *ws = EK_NEW(&arena, f64, 600), *cs = EK_NEW(&arena, f64, 128);
+
+        make_entries(&E, sizes[s], 31u + s, 0, 0);
+        out = EK_NEW(&arena, Chord, E.n + 1u);
+        cfg_default(&C, 0);
+        CHECK(suggest(&arena, &L, &W, &E, &C, out, &S) == 0);
+        for (m = 0; m < EK_NMASK; m++) {
+            u32 nw = 0, nc = 0;
+
+            for (i = 0; i < E.n; i++) {
+                if (E.chord[i].mods[0] == m) {
+                    ws[nw++] = E.weight[i];
+                }
+            }
+            if (nw == 0u) {
+                continue;
+            }
+            for (k = 0; k < L.nkeys; k++) {
+                if (L.chordable[k]) {
+                    Chord c;
+
+                    memset(&c, 0, sizeof(c));
+                    c.nsteps = 1;
+                    c.mods[0] = (u8)m;
+                    c.key[0] = (u8)k;
+                    cs[nc++] = shortcut_cost(&L, &W, &c).cost;
+                }
+            }
+            qsort(ws, nw, sizeof(f64), cmp_desc);
+            qsort(cs, nc, sizeof(f64), cmp_asc);
+            for (i = 0; i < nw; i++) {
+                best += ws[i] * cs[i];
+            }
+        }
+        CHECK_NEAR(total(&E, out), best, 1e-6 * (1.0 + best));
+        arena_reset(&arena, mark);
+    }
+}
+
+/* With any modifier set from the input allowed, all cells of those sets compete in one pool; same argument. */
+static void test_reaches_optimum_any_mods(void)
+{
+    Entries E;
+    Chord *out;
+    OptCfg C;
+    OptStat S;
+    f64 best = 0.0;
+    u32 m, i, k, nw = 0, nc = 0, seen = 0;
+    size_t mark = arena_mark(&arena);
+    f64 *ws = EK_NEW(&arena, f64, 600), *cs = EK_NEW(&arena, f64, 2048);
+
+    make_entries(&E, 200, 77u, 0, 0);
+    out = EK_NEW(&arena, Chord, E.n + 1u);
+    cfg_default(&C, 0);
+    C.anymods = 1;
+    CHECK(suggest(&arena, &L, &W, &E, &C, out, &S) == 0);
+    for (i = 0; i < E.n; i++) {
+        ws[nw++] = E.weight[i];
+        seen |= 1u << E.chord[i].mods[0];
+    }
+    for (m = 0; m < EK_NMASK; m++) {
+        if (!(seen & (1u << m))) {
+            continue;
+        }
+        for (k = 0; k < L.nkeys; k++) {
+            if (L.chordable[k]) {
+                Chord c;
+
+                memset(&c, 0, sizeof(c));
+                c.nsteps = 1;
+                c.mods[0] = (u8)m;
+                c.key[0] = (u8)k;
+                cs[nc++] = shortcut_cost(&L, &W, &c).cost;
+            }
+        }
+    }
+    qsort(ws, nw, sizeof(f64), cmp_desc);
+    qsort(cs, nc, sizeof(f64), cmp_asc);
+    for (i = 0; i < nw; i++) {
+        best += ws[i] * cs[i];
+    }
+    CHECK_NEAR(total(&E, out), best, 1e-6 * (1.0 + best));
+    arena_reset(&arena, mark);
+}
+
 static void test_improves(void)
 {
     Entries E;
@@ -334,6 +447,8 @@ int main(void)
     weights_defaults(&W);
     test_properties();
     test_improves();
+    test_reaches_optimum();
+    test_reaches_optimum_any_mods();
     test_determinism();
     test_conflicts_resolved();
     test_pinned();
