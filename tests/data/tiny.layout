@@ -1,0 +1,11 @@
+# Two chordable keys and the four modifier keys: small enough to run out of chords.
+name tiny
+row 0 0 lc la ls lsh a b
+finger LP lc la ls lsh a
+finger RP b
+home LP a
+home RP b
+mod ctrl lc
+mod alt la
+mod super ls
+mod shift lsh

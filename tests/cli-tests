@@ -1,0 +1,159 @@
+#!/bin/sh
+# cli-tests - the binary as a user runs it: exit codes, --help, JSON validity, determinism, file output.
+# usage: sh tests/cli-tests [BINARY]      run from the repository root; BINARY defaults to build/ergokeys
+BIN=${1:-build/ergokeys}
+TMP=build/tmp/cli-$$
+mkdir -p "$TMP" || exit 2
+pass=0
+fail=0
+
+ok() { pass=$((pass + 1)); }
+bad() { fail=$((fail + 1)); echo "FAIL: $1"; }
+
+# expect NAME CODE COMMAND...: the command must exit with CODE
+expect() {
+    name=$1 want=$2
+    shift 2
+    "$@" >"$TMP/out" 2>"$TMP/err"
+    got=$?
+    if [ "$got" = "$want" ]; then ok; else bad "$name: exit $got, wanted $want"; fi
+}
+
+# has NAME FILE TEXT: the file must contain the fixed text
+has() {
+    if grep -F -q -- "$3" "$2"; then ok; else bad "$1: '$3' not in $2"; fi
+}
+
+same() {
+    if cmp -s "$2" "$3"; then ok; else bad "$1: $2 and $3 differ"; fi
+}
+
+json_valid() {
+    if command -v python3 >/dev/null 2>&1; then
+        if python3 -m json.tool "$2" >/dev/null 2>&1; then ok; else bad "$1: invalid JSON"; fi
+    else
+        ok
+    fi
+}
+
+# usage and help
+expect "no arguments" 1 "$BIN"
+expect "unknown subcommand" 1 "$BIN" frobnicate
+expect "--help" 0 "$BIN" --help
+cp "$TMP/out" "$TMP/help1"
+expect "help" 0 "$BIN" help
+same "help = --help" "$TMP/out" "$TMP/help1"
+sed -n '/HELP-BEGIN/,/HELP-END/p' src/main.c | sed '1d;$d' | sed 's/^ \* \{0,1\}//; s/^ \*$//' >"$TMP/help-src"
+same "--help is the header of main.c" "$TMP/help1" "$TMP/help-src"
+expect "--version" 0 "$BIN" --version
+has "version text" "$TMP/out" "ergokeys "
+expect "missing FILE" 1 "$BIN" simulate
+expect "unknown option" 1 "$BIN" simulate --nope tests/data/sample.tsv
+expect "bad --mods" 1 "$BIN" suggest --mods sideways tests/data/sample.tsv
+expect "bad --iters" 1 "$BIN" suggest --iters abc tests/data/sample.tsv
+
+# files
+expect "missing input file" 2 "$BIN" simulate "$TMP/none.tsv"
+: >"$TMP/empty.tsv"
+expect "empty input" 2 "$BIN" simulate "$TMP/empty.tsv"
+expect "unknown layout" 2 "$BIN" simulate -l nosuchlayout tests/data/sample.tsv
+printf 'name x\nrow 0 0 a\nfrob\n' >"$TMP/broken.layout"
+expect "invalid layout file" 2 "$BIN" layout "$TMP/broken.layout"
+printf 'travel abc\n' >"$TMP/broken.conf"
+expect "invalid config" 2 "$BIN" simulate -c "$TMP/broken.conf" tests/data/sample.tsv
+
+# simulate on the real samples
+expect "simulate tsv" 0 "$BIN" simulate tests/data/sample.tsv
+has "tsv skipped line reported" "$TMP/err" "sample.tsv:12: skipped"
+has "tsv total" "$TMP/out" "total weighted by use"
+expect "simulate hyprland" 0 "$BIN" simulate tests/data/hyprland.conf
+has "hyprland detected" "$TMP/out" "(hyprland)"
+has "hyprland skipped count" "$TMP/out" "12 lines skipped"
+expect "simulate i3" 0 "$BIN" simulate tests/data/i3.conf
+has "i3 detected" "$TMP/out" "(i3)"
+expect "simulate dwl" 0 "$BIN" simulate tests/data/dwl-config.h
+has "dwl detected" "$TMP/out" "(dwl)"
+expect "forced format" 0 "$BIN" simulate -f i3 tests/data/i3.conf
+sed 's/$/\r/' tests/data/i3.conf >"$TMP/i3-crlf.conf"
+expect "CRLF input" 0 "$BIN" simulate "$TMP/i3-crlf.conf"
+has "CRLF same count" "$TMP/out" "29 shortcuts"
+
+# --strict
+expect "strict with skipped lines" 3 "$BIN" simulate --strict tests/data/sample.tsv
+printf 'a\tCtrl+a\nb\tCtrl+a\n' >"$TMP/dup.tsv"
+expect "conflict reported" 0 "$BIN" simulate "$TMP/dup.tsv"
+has "conflict text" "$TMP/out" "conflict: Ctrl+a"
+expect "strict with a conflict" 3 "$BIN" simulate --strict "$TMP/dup.tsv"
+printf 'a\tCtrl+a\nb\tCtrl+b\n' >"$TMP/clean.tsv"
+expect "strict on clean input" 0 "$BIN" simulate --strict "$TMP/clean.tsv"
+
+# score
+expect "score" 0 "$BIN" score Ctrl+c
+has "score row" "$TMP/out" "Ctrl+c"
+expect "score sequence" 0 "$BIN" score "C-x C-s" Super+Return
+expect "score bad key" 1 "$BIN" score Ctrl+nosuchkey
+expect "score no argument" 1 "$BIN" score
+expect "score g is 19.05 mm" 0 "$BIN" score g
+has "adjacent key distance" "$TMP/out" "19.05"
+
+# layouts
+for l in qwerty-ansi ortho-5x12 split-4x6; do
+    expect "layout $l" 0 "$BIN" layout "$l"
+    has "layout $l name" "$TMP/out" "layout $l"
+    expect "score on $l" 0 "$BIN" score -l "$l" Ctrl+c
+    expect "simulate on $l" 0 "$BIN" simulate -l "$l" tests/data/sample.tsv
+    expect "layout $l --json" 0 "$BIN" layout "$l" --json
+    json_valid "layout $l json" "$TMP/out"
+done
+expect "layout from a path" 0 "$BIN" layout layouts/ortho-5x12.layout
+expect "layout with -L" 0 "$BIN" layout -L layouts split-4x6
+ERGOKEYS_LAYOUTS=layouts expect "layout via ERGOKEYS_LAYOUTS" 0 "$BIN" layout ortho-5x12
+
+# config
+expect "config" 0 "$BIN" config
+same "config/default.conf is the output of 'config'" "$TMP/out" config/default.conf
+cp "$TMP/out" "$TMP/conf-out"
+expect "simulate default" 0 "$BIN" simulate tests/data/sample.tsv
+cp "$TMP/out" "$TMP/sim-default"
+expect "simulate with the default config file" 0 "$BIN" simulate -c config/default.conf tests/data/sample.tsv
+same "default config changes nothing" "$TMP/out" "$TMP/sim-default"
+printf 'travel 2\n' >"$TMP/w.conf"
+expect "simulate with a heavier travel" 0 "$BIN" simulate -c "$TMP/w.conf" tests/data/sample.tsv
+if cmp -s "$TMP/out" "$TMP/sim-default"; then bad "weights have no effect"; else ok; fi
+
+# JSON of every subcommand
+expect "simulate --json" 0 "$BIN" simulate --json tests/data/hyprland.conf
+json_valid "simulate json" "$TMP/out"
+has "json total" "$TMP/out" '"total"'
+expect "score --json" 0 "$BIN" score --json Ctrl+c g
+json_valid "score json" "$TMP/out"
+expect "suggest --json" 0 "$BIN" suggest --json tests/data/i3.conf
+json_valid "suggest json" "$TMP/out"
+
+# suggest
+expect "suggest" 0 "$BIN" suggest tests/data/sample.tsv
+cp "$TMP/out" "$TMP/sug1"
+has "suggest summary" "$TMP/out" "lower"
+expect "suggest again" 0 "$BIN" suggest tests/data/sample.tsv
+same "suggest is deterministic" "$TMP/out" "$TMP/sug1"
+expect "suggest with other seed" 0 "$BIN" suggest --seed 2 tests/data/sample.tsv
+expect "suggest greedy only" 0 "$BIN" suggest --iters 0 tests/data/sample.tsv
+expect "suggest any modifiers" 0 "$BIN" suggest --mods any tests/data/sample.tsv
+for f in hyprland.conf i3.conf dwl-config.h; do
+    expect "suggest $f" 0 "$BIN" suggest tests/data/$f
+done
+expect "suggest no solution" 4 "$BIN" suggest -L tests/data -l tiny tests/data/nosol.tsv
+expect "suggest on a layout path" 4 "$BIN" suggest -l tests/data/tiny.layout tests/data/nosol.tsv
+
+# suggest --out: refuses to overwrite, and its output is a valid input with the cost suggest reported
+expect "suggest --out" 0 "$BIN" suggest -o "$TMP/new.tsv" tests/data/sample.tsv
+expect "suggest --out refuses to overwrite" 2 "$BIN" suggest -o "$TMP/new.tsv" tests/data/sample.tsv
+expect "simulate the proposed file" 0 "$BIN" simulate --strict "$TMP/new.tsv"
+after=$(sed -n 's/^after: *cost \([0-9.]*\),.*/\1/p' "$TMP/sug1")
+has "round trip cost" "$TMP/out" "cost $after"
+printf 'x\tSuper+q\ny\tSuper+q\nz\tSuper+w\n' >"$TMP/conf.tsv"
+expect "suggest resolves a conflict" 0 "$BIN" suggest -o "$TMP/resolved.tsv" "$TMP/conf.tsv"
+expect "resolved file has no conflict" 0 "$BIN" simulate --strict "$TMP/resolved.tsv"
+
+echo "cli-tests: $((pass + fail)) checks, $fail failed"
+[ "$fail" = 0 ]
