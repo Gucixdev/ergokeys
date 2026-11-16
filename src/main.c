@@ -244,6 +244,7 @@ static Layout *load_layout(Arena *a, const Args *A)
     Layout *L = EK_NEW(a, Layout, 1);
     LayoutErr e;
     char path[512];
+    const char *shown = path; /* the file named in a parse error */
     const char *dirs[4];
     const char *env = getenv("ERGOKEYS_LAYOUTS");
     size_t len = 0, nl = strlen(A->layout);
@@ -260,7 +261,7 @@ static Layout *load_layout(Arena *a, const Args *A)
             return NULL;
         }
         found = 1;
-        strcpy(path, A->layout);
+        shown = A->layout; /* any length: never copied into path */
     } else {
         if (A->ldir != NULL) {
             dirs[nd++] = A->ldir;
@@ -293,7 +294,7 @@ static Layout *load_layout(Arena *a, const Args *A)
         }
     }
     if (!layout_parse(buf, len, L, &e)) {
-        fprintf(stderr, "ergokeys: %s:%u: %s%s%s%s\n", path, (unsigned)e.line, e.why, e.ctx[0] ? " '" : "", e.ctx,
+        fprintf(stderr, "ergokeys: %s:%u: %s%s%s%s\n", shown, (unsigned)e.line, e.why, e.ctx[0] ? " '" : "", e.ctx,
                 e.ctx[0] ? "'" : "");
         return NULL;
     }

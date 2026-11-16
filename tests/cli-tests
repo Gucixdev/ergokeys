@@ -157,6 +157,9 @@ for f in hyprland.conf i3.conf dwl-config.h; do
 done
 expect "suggest no solution" 4 "$BIN" suggest -L tests/data -l tiny tests/data/nosol.tsv
 expect "suggest on a layout path" 4 "$BIN" suggest -l tests/data/tiny.layout tests/data/nosol.tsv
+# a layout path longer than the internal path buffer (512 bytes) is read like any other
+long=$(awk 'BEGIN { for (i = 0; i < 300; i++) printf "./" }')
+expect "layout path of 600+ bytes" 0 "$BIN" layout -l "${long}layouts/qwerty-ansi.layout"
 
 # suggest --out: refuses to overwrite, and its output is a valid input with the cost suggest reported
 expect "suggest --out" 0 "$BIN" suggest -o "$TMP/new.tsv" tests/data/sample.tsv
