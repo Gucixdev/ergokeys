@@ -107,6 +107,22 @@ Known simplifications: a finger walks in a straight line, with no lift and no re
 the thumb row is one row; the cost of a key does not depend on what was pressed before the shortcut. All of these are
 visible in `src/cost.c` and can change without touching the rest.
 
+What the model knows about the hand, and what it does not (checked 2026-11-22 by running it):
+
+- Fingers are ten independent points, each walking a straight line from its home key. The only per-finger facts are
+  which keys it owns and where it rests; hand size is not an input. `pitch` and `travel` scale every distance alike,
+  and that moves almost nothing: the order of the keys for a given modifier set, which is all `suggest` uses, stays at
+  Spearman 0.996 to 1.000 when `travel` goes from 0.7 to 1.5 (about 0.86 with every penalty at zero).
+- What a real hand size would change is the reach between two fingers of one hand (Ctrl on the pinky and a key two
+  rows up on the ring finger) and how far one finger can go without the hand shifting. Neither is in the model.
+- Every key a finger presses costs the same wherever that finger rests, so `Super+a` (pinky) equals `Super+f` (index)
+  and `q`, `w`, `e`, `r` tie. "Pinkies are weak" held only for modifiers. `pen_key_pinky` and `pen_key_ring` charge
+  the pressed key; they default to 0 so older numbers stay, and a value around 8 and 3 is what that advice suggests.
+- A modifier is chosen per step, the cheapest, so `Ctrl+c` is priced with the right Ctrl on a layout that has both.
+  That is the best case, not what a hand that always uses the left Ctrl pays: give such a layout one `mod ctrl` key.
+- Checked, not assumed: over 720 chords (every modifier set times 45 keys) adding a modifier never lowers the cost or
+  the travel, and no chord with a modifier is clamped to zero.
+
 ## Importers
 
 Four formats, detected from the content unless `--format` is given: own TSV (`action TAB chord [TAB weight [TAB
@@ -175,8 +191,9 @@ patch to apply, and `--out` writes a TSV, never a config in the original format.
 - `tests/data/` holds real-shaped sample configs for each importer, taken from the stock configs of those programs.
 - `bench/bench.c` and `bench/run-bench`: median, minimum and maximum of repeated runs after a warm-up, appended to `docs/bench.md` (`bench/RESULTS.md` is the older log).
 
-Lean 4: the properties that could be proved (the cost is non-negative, the cost of a chord equals the cost of its mirror
-image on a symmetric layout, a greedy move strictly lowers the total) were not proved, because no Lean toolchain
-(`lake`, `lean`) is installed on the machine this was built on. They are covered by exhaustive checks in the C tests
-instead: all 16 modifier sets times every chordable key on qwerty-ansi for non-negativity, a mirror test on
-`ortho-5x12`, and `greedy_bad == 0` over 18 random problems. A `lean4/` directory is added only when the proofs exist.
+Lean 4: `lean4/Ergokeys.lean` proves the bookkeeping of `suggest` (relocation and swap keep one action per chord, the
+searched cost change equals the change of the total), run by `./run`. The model itself is examined over the reals in
+the devframework test templates (`ergokeys/Cost.lean`: the weighted distance is a metric, it lies between the plain
+distance and `vertical_factor` times it, the cheapest modifier choice is monotone in every weight). Not proved: the
+f64 rounding of the C code and the penalty rules, which `tests/test_model.c` checks by hand; and a proof says the model
+is consistent, not that it matches a hand.

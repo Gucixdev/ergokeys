@@ -135,6 +135,31 @@ static void test_modifiers(const Layout *L)
     CHECK_NEAR(c.cost, 0.0, 1e-12);
 }
 
+static void test_key_finger(const Layout *L)
+{
+    Weights W;
+    Cost c;
+
+    zero_penalties(&W);
+    W.v[C_TRAVEL] = 0.0;
+    /* off by default: a home key costs the same under every finger */
+    CHECK_NEAR(cost_of(L, &W, "a").cost, 0.0, 1e-12);
+    W.v[C_KEY_PINKY] = 9.0;
+    W.v[C_KEY_RING] = 4.0;
+    /* A is a left pinky key, S a left ring key, D a left middle key, F a left index key, ; a right pinky key */
+    c = cost_of(L, &W, "a");
+    CHECK_NEAR(c.cost, 9.0, 1e-12);
+    c = cost_of(L, &W, "s");
+    CHECK_NEAR(c.cost, 4.0, 1e-12);
+    CHECK_NEAR(cost_of(L, &W, "d").cost, 0.0, 1e-12);
+    CHECK_NEAR(cost_of(L, &W, "f").cost, 0.0, 1e-12);
+    CHECK_NEAR(cost_of(L, &W, "semicolon").cost, 9.0, 1e-12);
+    /* Q is a pinky key too, one row up, which adds nothing here (travel and row penalties are zero) */
+    CHECK_NEAR(cost_of(L, &W, "q").cost, 9.0, 1e-12);
+    /* a sequence pays per step: A then S */
+    CHECK_NEAR(cost_of(L, &W, "a s").cost, 13.0, 1e-12);
+}
+
 static void test_sequences(const Layout *L)
 {
     Weights W;
@@ -278,6 +303,7 @@ int main(void)
     test_geometry(&L);
     test_hand_values(&L);
     test_modifiers(&L);
+    test_key_finger(&L);
     test_sequences(&L);
     test_exhaustive(&L);
     test_mirror();

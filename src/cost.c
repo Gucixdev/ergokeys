@@ -21,7 +21,7 @@
 enum {
     C_TRAVEL, C_VERTICAL, C_MOD_PINKY, C_MOD_RING, C_ONE_HAND, C_SAME_FINGER, C_REPEAT_KEY, C_FAR_ROW,
     C_FINGER_CONFLICT, C_ALTERNATE, C_RETURN_TRIP, C_SUGGEST_MODS, C_SEED, C_ANNEAL_ITERS, C_ANNEAL_T0,
-    C_ANNEAL_T1, C_GREEDY_PASSES, EK_NCONF
+    C_ANNEAL_T1, C_GREEDY_PASSES, C_KEY_PINKY, C_KEY_RING, EK_NCONF
 };
 
 typedef struct {
@@ -47,7 +47,9 @@ static const ConfDef ek_conf[EK_NCONF] = {
     {"anneal_iters", 200000.0, "simulated annealing steps in suggest, 0 for greedy swaps only"},
     {"anneal_t0", 8.0, "annealing start temperature, in cost units per average action weight"},
     {"anneal_t1", 0.05, "annealing end temperature"},
-    {"greedy_passes", 30.0, "most passes of the greedy improvement before and after annealing"}};
+    {"greedy_passes", 30.0, "most passes of the greedy improvement before and after annealing"},
+    {"pen_key_pinky", 0.0, "a pinky that presses the key of a step, home key or not; 0 treats every finger alike on the key"},
+    {"pen_key_ring", 0.0, "a ring finger that presses the key of a step, home key or not"}};
 
 typedef struct {
     f64 v[EK_NCONF];
@@ -228,6 +230,11 @@ static Cost step_cost(const Layout *L, const Weights *W, const Fingers *in, u8 m
             cost += W->v[C_TRAVEL] * ek_sqrt(dx * dx + W->v[C_VERTICAL] * W->v[C_VERTICAL] * dy * dy);
             if (used & (1u << keyf)) {
                 cost += W->v[C_FINGER_CONFLICT];
+            }
+            if (EK_IS_PINKY(keyf)) {
+                cost += W->v[C_KEY_PINKY];
+            } else if (EK_IS_RING(keyf)) {
+                cost += W->v[C_KEY_RING];
             }
             if (up > 1.0 + 1e-9) {
                 cost += W->v[C_FAR_ROW] * (up - 1.0);

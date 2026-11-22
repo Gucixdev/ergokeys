@@ -77,8 +77,10 @@ Not done or not verified:
 
 - The sample configs follow the stock Hyprland, i3 and dwl files; they were not exported from a running system. The dwl
   importer reads `config.h` text and understands only `#define MODKEY` and `TAGKEYS`.
-- The finger model is simple: straight-line moves, one thumb row, no hand shifting. Real typists differ, and the
-  defaults come from common typing advice, not measurements. Not run on a real keyboard.
+- The finger model is simple: straight-line moves, one thumb row, no hand shifting, and no hand size (no reach between
+  fingers, no per-finger limit). A pressed key costs the same under every finger unless `pen_key_pinky` and
+  `pen_key_ring` (default 0) are set. Real typists differ, and the defaults come from common typing advice, not
+  measurements. Not run on a real keyboard. What was checked and what it means: [docs/DESIGN.md](docs/DESIGN.md).
 - `suggest` has no notion of mnemonics; sequences and `fixed` actions are never moved, and annealing does not beat the
   greedy phase with the current cost model ([docs/DESIGN.md](docs/DESIGN.md) says why).
 - Lean 4 proofs ([lean4/Ergokeys.lean](lean4/Ergokeys.lean), run by `./run`) cover the bookkeeping of `suggest`: the
