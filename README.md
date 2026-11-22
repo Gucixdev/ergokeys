@@ -24,6 +24,7 @@ out/ergokeys suggest i3                                 # propose cheaper bindin
 out/ergokeys suggest FILE -o proposal.tsv               # write them out (refuses to overwrite)
 out/ergokeys layout split-4x6                           # show a layout and its finger map
 out/ergokeys span a t                                   # mm between two keys: measure your hand (hand_span)
+out/ergokeys score "C-x C-s" --hand-span 60 --finger-reach 30   # optional hand model; the default is general
 out/ergokeys config > my.conf                           # every weight with its meaning; edit, then use -c my.conf
 ```
 

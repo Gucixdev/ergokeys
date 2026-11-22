@@ -28,6 +28,8 @@
  *   -c, --config FILE   weights file; see `ergokeys config`
  *   -o, --out FILE      suggest: write the proposed bindings as TSV (refuses to overwrite)
  *       --seed N        suggest: seed of the search
+ *       --hand-span MM  opt in to the hand model: widest comfortable stretch of two fingers (default off: general)
+ *       --finger-reach MM  opt in: how far one finger reaches from its home key (default off)
  *       --iters N       suggest: annealing steps, 0 for greedy swaps only
  *       --mods keep|any suggest: keep each action's modifiers (default) or allow any modifier set from the input
  *       --json          machine-readable output on stdout
@@ -70,6 +72,8 @@ typedef struct {
     int mods;      /* -1 unset */
     long iters;    /* -1 unset */
     long seed;     /* -1 unset */
+    double span;   /* -1 unset: --hand-span MM */
+    double reach;  /* -1 unset: --finger-reach MM */
     const char *layout;
     const char *ldir;
     const char *conf;
@@ -93,6 +97,8 @@ static int parse_args(int argc, char **argv, Args *A)
     A->mods = -1;
     A->iters = -1;
     A->seed = -1;
+    A->span = -1.0;
+    A->reach = -1.0;
     A->layout = "qwerty-ansi";
     for (i = 2; i < argc; i++) {
         const char *s = argv[i];
@@ -134,7 +140,7 @@ static int parse_args(int argc, char **argv, Args *A)
                 strcmp(s, "--layout") == 0 || strcmp(s, "-L") == 0 || strcmp(s, "--layouts") == 0 ||
                 strcmp(s, "-c") == 0 || strcmp(s, "--config") == 0 || strcmp(s, "-o") == 0 ||
                 strcmp(s, "--out") == 0 || strcmp(s, "--seed") == 0 || strcmp(s, "--iters") == 0 ||
-                strcmp(s, "--mods") == 0;
+                strcmp(s, "--mods") == 0 || strcmp(s, "--hand-span") == 0 || strcmp(s, "--finger-reach") == 0;
         if (!takes) {
             return usage_err("unknown option", s);
         }
@@ -175,6 +181,18 @@ static int parse_args(int argc, char **argv, Args *A)
                 A->mods = 1;
             } else {
                 return usage_err("--mods takes keep or any", val);
+            }
+        } else if (strcmp(s, "--hand-span") == 0 || strcmp(s, "--finger-reach") == 0) {
+            char *end;
+            double d = strtod(val, &end);
+
+            if (*end != '\0' || !(d > 0.0) || d > 1000.0) {
+                return usage_err("not a distance in mm (0 to 1000)", val);
+            }
+            if (strcmp(s, "--hand-span") == 0) {
+                A->span = d;
+            } else {
+                A->reach = d;
             }
         } else {
             char *end;
@@ -327,6 +345,12 @@ static int load_weights(Arena *a, const Args *A, Weights *W)
     }
     if (A->mods >= 0) {
         W->v[C_SUGGEST_MODS] = (f64)A->mods;
+    }
+    if (A->span > 0.0) {
+        W->v[C_HAND_SPAN] = A->span;
+    }
+    if (A->reach > 0.0) {
+        W->v[C_FINGER_REACH] = A->reach;
     }
     return 1;
 }

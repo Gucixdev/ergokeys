@@ -123,6 +123,10 @@ keys of the layout and the line to paste into a weights file, for example `ergok
 `ergokeys simulate FILE -c my.conf`, and see which shortcuts now cost extra: those are the ones your hand dislikes.
 The two checks do not touch each other, so a hand can set one without the other.
 
+The default stays general, one layout model for every hand, with no hand size in it. The hand model is an option: set
+the two weights in a file (`-c my.conf`) or pass them for one run, `--hand-span MM` and `--finger-reach MM`, for example
+`ergokeys score "Ctrl+Shift+t" --hand-span 60 --finger-reach 30`. Without them no check on reach or span runs.
+
 What the rest of the model knows about the hand, and what it does not (checked 2026-11-22 by running it):
 
 - Fingers are ten independent points, each walking a straight line from its home key. `pitch` and `travel` scale every

@@ -114,6 +114,13 @@ json_valid "span json" "$TMP/out"
 expect "span with one key" 1 "$BIN" span a
 expect "span with an unknown key" 1 "$BIN" span a nosuchkey
 expect "span with another layout" 0 "$BIN" span -l ortho-5x12 1 2
+expect "default score has no hand model" 0 "$BIN" score "Ctrl+Shift+t"
+has "default cost" "$TMP/out" "180.75"
+expect "hand model on request" 0 "$BIN" score "Ctrl+Shift+t" --hand-span 20 --finger-reach 15
+has "hand cost is higher" "$TMP/out" "319.03"
+expect "--hand-span without a value" 1 "$BIN" score x --hand-span
+expect "--hand-span zero" 1 "$BIN" score "Ctrl+t" --hand-span 0
+expect "--finger-reach not a number" 1 "$BIN" score "Ctrl+t" --finger-reach wide
 expect "layout from a path" 0 "$BIN" layout layouts/ortho-5x12.layout
 expect "layout with -L" 0 "$BIN" layout -L layouts split-4x6
 ERGOKEYS_LAYOUTS=layouts expect "layout via ERGOKEYS_LAYOUTS" 0 "$BIN" layout ortho-5x12
