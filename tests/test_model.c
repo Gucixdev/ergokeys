@@ -160,6 +160,87 @@ static void test_key_finger(const Layout *L)
     CHECK_NEAR(cost_of(L, &W, "a s").cost, 13.0, 1e-12);
 }
 
+static void test_hand_span(const Layout *L)
+{
+    Weights W, D;
+    Layout left, right;
+    Cost c0, c1, c2;
+    f64 d;
+
+    /* shipped defaults: the key weights are on, the reach check is off until hand_span is set */
+    weights_defaults(&D);
+    CHECK_NEAR(D.v[C_KEY_PINKY], 8.0, 0.0);
+    CHECK_NEAR(D.v[C_KEY_RING], 3.0, 0.0);
+    CHECK_NEAR(D.v[C_HAND_SPAN], 0.0, 0.0);
+
+    zero_penalties(&W);
+    W.v[C_TRAVEL] = 0.0;
+    W.v[C_OVERSPAN] = 1.0;
+    left = only_mod(L, 0, "lctrl");
+    right = only_mod(L, 0, "rctrl");
+    /* off at hand_span 0, however far apart the fingers are */
+    c0 = cost_of(&left, &W, "Ctrl+r");
+    CHECK_NEAR(c0.cost, 0.0, 1e-12);
+    /* left pinky on Ctrl, left index on R: the cost is the distance of the two landing points minus the span */
+    W.v[C_HAND_SPAN] = 1.0;
+    c1 = cost_of(&left, &W, "Ctrl+r");
+    d = c1.cost + 1.0;
+    CHECK(d > 80.0 && d < 100.0);
+    W.v[C_HAND_SPAN] = 21.0;
+    c2 = cost_of(&left, &W, "Ctrl+r");
+    CHECK_NEAR(c1.cost - c2.cost, 20.0, 1e-9);
+    /* a span as wide as the reach costs nothing, and the weight scales the excess */
+    W.v[C_HAND_SPAN] = d + 0.001;
+    CHECK_NEAR(cost_of(&left, &W, "Ctrl+r").cost, 0.0, 1e-12);
+    W.v[C_HAND_SPAN] = 1.0;
+    W.v[C_OVERSPAN] = 2.5;
+    CHECK_NEAR(cost_of(&left, &W, "Ctrl+r").cost, 2.5 * (d - 1.0), 1e-9);
+    /* the other hand's Ctrl, a thumb modifier and a single key press no span */
+    CHECK_NEAR(cost_of(&right, &W, "Ctrl+r").cost, 0.0, 1e-12);
+    CHECK_NEAR(cost_of(L, &W, "r").cost, 0.0, 1e-12);
+    {
+        Layout th = only_mod(L, 1, "lalt");
+
+        CHECK_NEAR(cost_of(&th, &W, "Alt+r").cost, 0.0, 1e-12);
+    }
+}
+
+static void test_finger_reach(const Layout *L)
+{
+    Weights W;
+    Layout left;
+
+    zero_penalties(&W);
+    W.v[C_TRAVEL] = 0.0;
+    W.v[C_OVERREACH] = 1.0;
+    /* off at 0, however far the key is: T is 23.8125 mm from F, the left index home */
+    CHECK_NEAR(cost_of(L, &W, "t").cost, 0.0, 1e-12);
+    W.v[C_FINGER_REACH] = 10.0;
+    CHECK_NEAR(cost_of(L, &W, "t").cost, 13.8125, 1e-9);
+    CHECK_NEAR(cost_of(L, &W, "f").cost, 0.0, 1e-12);
+    /* G is one pitch from F */
+    CHECK_NEAR(cost_of(L, &W, "g").cost, 19.05 - 10.0, 1e-9);
+    W.v[C_OVERREACH] = 3.0;
+    CHECK_NEAR(cost_of(L, &W, "t").cost, 3.0 * 13.8125, 1e-9);
+    /* a reach as long as the move costs nothing */
+    W.v[C_FINGER_REACH] = 23.8125;
+    CHECK_NEAR(cost_of(L, &W, "t").cost, 0.0, 1e-9);
+    /* the modifier finger counts too: its landing point on lctrl is mm from the left pinky home (47.63, the mm column
+     * of score), F adds nothing */
+    left = only_mod(L, 0, "lctrl");
+    W.v[C_OVERREACH] = 1.0;
+    W.v[C_FINGER_REACH] = 40.0;
+    CHECK_NEAR(cost_of(&left, &W, "Ctrl+f").mm, 47.625, 0.01);
+    CHECK_NEAR(cost_of(&left, &W, "Ctrl+f").cost, cost_of(&left, &W, "Ctrl+f").mm - 40.0, 1e-9);
+    /* a thumb modifier is exempt */
+    {
+        Layout th = only_mod(L, 1, "lalt");
+
+        W.v[C_FINGER_REACH] = 1.0;
+        CHECK_NEAR(cost_of(&th, &W, "Alt+f").cost, 0.0, 1e-9);
+    }
+}
+
 static void test_sequences(const Layout *L)
 {
     Weights W;
@@ -304,6 +385,8 @@ int main(void)
     test_hand_values(&L);
     test_modifiers(&L);
     test_key_finger(&L);
+    test_hand_span(&L);
+    test_finger_reach(&L);
     test_sequences(&L);
     test_exhaustive(&L);
     test_mirror();

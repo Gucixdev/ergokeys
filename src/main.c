@@ -9,6 +9,7 @@
  *   score KEYS...   the same for shortcuts given on the command line; quote a sequence: "C-x C-s"
  *   suggest [FILE|PROGRAM]  propose rebindings that lower the total cost; no two actions share a chord
  *   layout [NAME]   show a keyboard layout and its finger map (default qwerty-ansi)
+ *   span KEY KEY    distance in mm between two keys of the layout: measure your hand with it (hand_span, finger_reach)
  *   config          print every weight with its default and meaning, as a config file
  *   help            this text
  *
@@ -622,6 +623,36 @@ static int cmd_layout(Arena *a, Args *A)
     return EK_OK;
 }
 
+/* span KEY KEY: the distance between the centres of two keys, and the same as the weights it can feed */
+static int cmd_span(Arena *a, Args *A)
+{
+    Layout *L;
+    int k0, k1;
+    f64 d;
+
+    if (A->npos != 2) {
+        return usage_err("span takes two keys, for example: span a t", NULL);
+    }
+    L = load_layout(a, A);
+    if (L == NULL) {
+        return EK_IO;
+    }
+    k0 = layout_find(L, A->pos[0], strlen(A->pos[0]));
+    k1 = layout_find(L, A->pos[1], strlen(A->pos[1]));
+    if (k0 < 0 || k1 < 0) {
+        return usage_err("key not in the layout", k0 < 0 ? A->pos[0] : A->pos[1]);
+    }
+    d = ek_dist(L->x[k0], L->y[k0], L->x[k1], L->y[k1]);
+    if (A->json) {
+        printf("{\"layout\": \"%s\", \"from\": \"%s\", \"to\": \"%s\", \"mm\": %.4f}\n", L->name, A->pos[0], A->pos[1], d);
+    } else {
+        printf("layout %s: %s to %s = %.2f mm\n", L->name, A->pos[0], A->pos[1], d);
+        printf("as hand_span (two fingers of one hand): hand_span %.2f\n", d);
+        printf("as finger_reach (one finger from its home key): finger_reach %.2f\n", d);
+    }
+    return EK_OK;
+}
+
 static int cmd_config(void)
 {
     int i;
@@ -678,6 +709,9 @@ int main(int argc, char **argv)
     }
     if (strcmp(sub, "layout") == 0) {
         return cmd_layout(&arena, &A);
+    }
+    if (strcmp(sub, "span") == 0) {
+        return cmd_span(&arena, &A);
     }
     if (strcmp(sub, "config") == 0) {
         return cmd_config();

@@ -63,7 +63,7 @@ Super+Shift+s              Super+Shift+j                 130.64    111.73  scree
 ```
 
 The sequence `Ctrl+x Ctrl+s` is not moved. Run on the sample configs in `tests/data/`, `suggest` lowers the weighted
-cost by 37.7 percent for the Hyprland file (22 shortcuts, 1919.00 against 3081.43). The proposal ignores what an action
+cost by 37.7 percent for the Hyprland file (22 shortcuts, 1954.11 against 3136.43). The proposal ignores what an action
 means: it will move "workspace 1" off the `1` key. Read it as a list of cheap chords, not as a patch.
 
 

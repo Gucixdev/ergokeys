@@ -106,6 +106,14 @@ for l in qwerty-ansi qwerty-ansi-full ortho-5x12 split-4x6; do
     expect "layout $l --json" 0 "$BIN" layout "$l" --json
     json_valid "layout $l json" "$TMP/out"
 done
+expect "span of two keys" 0 "$BIN" span f g
+has "span f g distance" "$TMP/out" "f to g = 19.05 mm"
+has "span f g as a weight" "$TMP/out" "hand_span 19.05"
+expect "span --json" 0 "$BIN" span a t --json
+json_valid "span json" "$TMP/out"
+expect "span with one key" 1 "$BIN" span a
+expect "span with an unknown key" 1 "$BIN" span a nosuchkey
+expect "span with another layout" 0 "$BIN" span -l ortho-5x12 1 2
 expect "layout from a path" 0 "$BIN" layout layouts/ortho-5x12.layout
 expect "layout with -L" 0 "$BIN" layout -L layouts split-4x6
 ERGOKEYS_LAYOUTS=layouts expect "layout via ERGOKEYS_LAYOUTS" 0 "$BIN" layout ortho-5x12

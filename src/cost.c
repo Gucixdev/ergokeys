@@ -21,7 +21,7 @@
 enum {
     C_TRAVEL, C_VERTICAL, C_MOD_PINKY, C_MOD_RING, C_ONE_HAND, C_SAME_FINGER, C_REPEAT_KEY, C_FAR_ROW,
     C_FINGER_CONFLICT, C_ALTERNATE, C_RETURN_TRIP, C_SUGGEST_MODS, C_SEED, C_ANNEAL_ITERS, C_ANNEAL_T0,
-    C_ANNEAL_T1, C_GREEDY_PASSES, C_KEY_PINKY, C_KEY_RING, EK_NCONF
+    C_ANNEAL_T1, C_GREEDY_PASSES, C_KEY_PINKY, C_KEY_RING, C_HAND_SPAN, C_OVERSPAN, C_FINGER_REACH, C_OVERREACH, EK_NCONF
 };
 
 typedef struct {
@@ -48,8 +48,12 @@ static const ConfDef ek_conf[EK_NCONF] = {
     {"anneal_t0", 8.0, "annealing start temperature, in cost units per average action weight"},
     {"anneal_t1", 0.05, "annealing end temperature"},
     {"greedy_passes", 30.0, "most passes of the greedy improvement before and after annealing"},
-    {"pen_key_pinky", 0.0, "a pinky that presses the key of a step, home key or not; 0 treats every finger alike on the key"},
-    {"pen_key_ring", 0.0, "a ring finger that presses the key of a step, home key or not"}};
+    {"pen_key_pinky", 8.0, "a pinky that presses the key of a step, home key or not; 0 treats every finger alike on the key"},
+    {"pen_key_ring", 3.0, "a ring finger that presses the key of a step, home key or not"},
+    {"hand_span", 0.0, "your hand: the widest distance in mm between two non-thumb fingers of one hand that is still comfortable (measure it, see docs/DESIGN.md); 0 turns the reach check off"},
+    {"pen_overspan", 1.0, "per millimetre two fingers of one hand are pressed further apart than hand_span"},
+    {"finger_reach", 0.0, "your hand: how far in mm a non-thumb finger comfortably reaches from its home key without the hand moving (see docs/DESIGN.md); 0 turns the check off"},
+    {"pen_overreach", 1.0, "per millimetre a non-thumb finger lands further from its home key than finger_reach"}};
 
 typedef struct {
     f64 v[EK_NCONF];
@@ -157,6 +161,18 @@ static f64 ek_dist(f64 x0, f64 y0, f64 x1, f64 y1)
     return ek_sqrt(dx * dx + dy * dy);
 }
 
+/* reach cost of finger f landing at (tx, ty): how far past finger_reach it is from its home key, thumbs exempt */
+static f64 reach_cost(const Layout *L, const Weights *W, int f, f64 tx, f64 ty)
+{
+    f64 over;
+
+    if (W->v[C_FINGER_REACH] <= 0.0 || EK_IS_THUMB(f)) {
+        return 0.0;
+    }
+    over = ek_dist(L->hx[f], L->hy[f], tx, ty) - W->v[C_FINGER_REACH];
+    return over > 0.0 ? W->v[C_OVERREACH] * over : 0.0;
+}
+
 typedef struct {
     f64 mm;    /* finger travel, millimetres */
     f64 cost;  /* travel weight, penalties and bonus */
@@ -200,6 +216,7 @@ static Cost step_cost(const Layout *L, const Weights *W, const Fingers *in, u8 m
 
             mm += d;
             cost += W->v[C_TRAVEL] * ek_sqrt(dx * dx + W->v[C_VERTICAL] * W->v[C_VERTICAL] * dy * dy);
+            cost += reach_cost(L, W, f, tx, ty);
             if (used & (1u << f)) {
                 cost += W->v[C_FINGER_CONFLICT];
             }
@@ -228,6 +245,7 @@ static Cost step_cost(const Layout *L, const Weights *W, const Fingers *in, u8 m
 
             mm += ek_dist(st.x[keyf], st.y[keyf], tx, ty);
             cost += W->v[C_TRAVEL] * ek_sqrt(dx * dx + W->v[C_VERTICAL] * W->v[C_VERTICAL] * dy * dy);
+            cost += reach_cost(L, W, keyf, tx, ty);
             if (used & (1u << keyf)) {
                 cost += W->v[C_FINGER_CONFLICT];
             }
@@ -254,6 +272,24 @@ static Cost step_cost(const Layout *L, const Weights *W, const Fingers *in, u8 m
             st.x[keyf] = tx;
             st.y[keyf] = ty;
             st.last = (int)key;
+            used |= 1u << keyf;
+        }
+
+        if (W->v[C_HAND_SPAN] > 0.0) {
+            int fa, fb;
+
+            for (fa = 0; fa < EK_NF; fa++) {
+                for (fb = fa + 1; fb < EK_NF; fb++) {
+                    if ((used & (1u << fa)) && (used & (1u << fb)) && EK_HAND(fa) == EK_HAND(fb) && !EK_IS_THUMB(fa) &&
+                        !EK_IS_THUMB(fb)) {
+                        f64 gap = ek_dist(st.x[fa], st.y[fa], st.x[fb], st.y[fb]) - W->v[C_HAND_SPAN];
+
+                        if (gap > 0.0) {
+                            cost += W->v[C_OVERSPAN] * gap;
+                        }
+                    }
+                }
+            }
         }
 
         if (!have || cost < best.cost) {

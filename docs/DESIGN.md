@@ -103,21 +103,36 @@ alternation is fast), not values fitted to measurements. That is why every one o
 entry. `tests/test_model.c` checks the model against values worked out by hand (adjacent keys 19.05 mm, the distance
 to R and to B from the index home, G-then-H, G-then-G, each penalty on its own with the others at zero).
 
-Known simplifications: a finger walks in a straight line, with no lift and no reach limit; the hand does not shift;
+Known simplifications: a finger walks in a straight line, with no lift; reach is limited only by `hand_span` and `finger_reach`, off until measured; the hand does not shift;
 the thumb row is one row; the cost of a key does not depend on what was pressed before the shortcut. All of these are
 visible in `src/cost.c` and can change without touching the rest.
 
-What the model knows about the hand, and what it does not (checked 2026-11-22 by running it):
+Your hand (added 2026-11-22). Two weights carry the size of a hand; both are off (0) until you measure, because a number
+nobody measured would be a guess presented as data:
 
-- Fingers are ten independent points, each walking a straight line from its home key. The only per-finger facts are
-  which keys it owns and where it rests; hand size is not an input. `pitch` and `travel` scale every distance alike,
-  and that moves almost nothing: the order of the keys for a given modifier set, which is all `suggest` uses, stays at
-  Spearman 0.996 to 1.000 when `travel` goes from 0.7 to 1.5 (about 0.86 with every penalty at zero).
-- What a real hand size would change is the reach between two fingers of one hand (Ctrl on the pinky and a key two
-  rows up on the ring finger) and how far one finger can go without the hand shifting. Neither is in the model.
-- Every key a finger presses costs the same wherever that finger rests, so `Super+a` (pinky) equals `Super+f` (index)
-  and `q`, `w`, `e`, `r` tie. "Pinkies are weak" held only for modifiers. `pen_key_pinky` and `pen_key_ring` charge
-  the pressed key; they default to 0 so older numbers stay, and a value around 8 and 3 is what that advice suggests.
+- `hand_span`: the widest distance between two non-thumb fingers of one hand that you can press comfortably, in mm.
+  `pen_overspan` (1.0) charges every millimetre beyond it, for each pair of fingers pressing in the same step (Ctrl on
+  the pinky and a key far away on the index finger).
+- `finger_reach`: how far one finger goes from its home key without the hand moving, in mm. `pen_overreach` (1.0)
+  charges every millimetre beyond it, for modifier fingers and key fingers; thumbs are exempt.
+
+Measuring: put the fingers on the home row, and with the other fingers resting, find the farthest key each pair or
+each finger reaches without the hand sliding and without strain. `ergokeys span KEY KEY` prints the distance between two
+keys of the layout and the line to paste into a weights file, for example `ergokeys span a t` (pinky on `a`, index on
+`t`: 73.9 mm) or `ergokeys span f t` (index from home to `t`: 23.8 mm). Take the smallest value you are sure of, run
+`ergokeys simulate FILE -c my.conf`, and see which shortcuts now cost extra: those are the ones your hand dislikes.
+The two checks do not touch each other, so a hand can set one without the other.
+
+What the rest of the model knows about the hand, and what it does not (checked 2026-11-22 by running it):
+
+- Fingers are ten independent points, each walking a straight line from its home key. `pitch` and `travel` scale every
+  distance alike, and that moves almost nothing: the order of the keys for a given modifier set, which is all `suggest`
+  uses, stays at Spearman 0.996 to 1.000 when `travel` goes from 0.7 to 1.5 (about 0.86 with every penalty at zero).
+  So scaling is not a hand size; the two weights above are, because they cap what a finger or a pair may do.
+- Weak fingers: `pen_key_pinky` (8) and `pen_key_ring` (3) charge the key a pinky or ring finger presses, home key or
+  not. Before 2026-11-22 every key cost the same under every finger (`Super+a` equal to `Super+f`), "pinkies are weak"
+  held for modifiers only. The values are advice, not measurements; with them the proposal for the sample Hyprland
+  file gives up a little travel (1936.56 mm to 1942.13 mm) to keep heavy actions off the pinky.
 - A modifier is chosen per step, the cheapest, so `Ctrl+c` is priced with the right Ctrl on a layout that has both.
   That is the best case, not what a hand that always uses the left Ctrl pays: give such a layout one `mod ctrl` key.
 - Checked, not assumed: over 720 chords (every modifier set times 45 keys) adding a modifier never lowers the cost or

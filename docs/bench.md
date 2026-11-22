@@ -161,10 +161,10 @@ shortcut_cost, Ctrl+Shift+key: median 385 ns per call (min 372, max 416; 8 runs 
 
 Quality next to speed, `after:` line of `suggest` with the default 200000 annealing steps and with `--iters 0` (greedy only):
 
-- `tests/data/sample.tsv`: default `after:  cost 30273.64, 25393.89 mm  (34.6% lower)`, greedy `after:  cost 30273.64, 25393.89 mm  (34.6% lower)`: identical
-- `tests/data/hyprland.conf`: default `after:  cost 1919.00, 1936.56 mm  (37.7% lower)`, greedy `after:  cost 1919.00, 1936.56 mm  (37.7% lower)`: identical
-- `tests/data/i3.conf`: default `after:  cost 2925.76, 2775.21 mm  (21.5% lower)`, greedy `after:  cost 2925.76, 2775.21 mm  (21.5% lower)`: identical
-- `tests/data/dwl-config.h`: default `after:  cost 2736.50, 2449.42 mm  (32.9% lower)`, greedy `after:  cost 2736.50, 2449.42 mm  (32.9% lower)`: identical
+- `tests/data/sample.tsv`: default `after:  cost 30513.64, 25393.89 mm  (36.4% lower)`, greedy `after:  cost 30513.64, 25393.89 mm  (36.4% lower)`: identical
+- `tests/data/hyprland.conf`: default `after:  cost 1954.11, 1942.13 mm  (37.7% lower)`, greedy `after:  cost 1954.11, 1942.13 mm  (37.7% lower)`: identical
+- `tests/data/i3.conf`: default `after:  cost 2969.02, 2778.53 mm  (22.1% lower)`, greedy `after:  cost 2969.02, 2778.53 mm  (22.1% lower)`: identical
+- `tests/data/dwl-config.h`: default `after:  cost 2780.12, 2449.42 mm  (33.5% lower)`, greedy `after:  cost 2780.12, 2449.42 mm  (33.5% lower)`: identical
 
 sample.tsv has 12 shortcuts; hyprland.conf 59 lines, i3.conf 45, dwl-config.h 47.
 load average at end: 14.99 10.69 6.61
