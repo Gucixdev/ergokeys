@@ -34,6 +34,10 @@ invalid, 3 `--strict` found skipped lines or conflicts, 4 `suggest` found no con
 `./install` builds and installs for the user (`~/.local`; `PREFIX=/usr/local` with sudo for the system).
 `./build` compiles what changed (`BUILD_FORCE=1 ./build` rebuilds everything); `./run` and `./install` call it, `./install -rebuild` starts from a full rebuild.
 
+## AMPL model
+
+`ampl/chord.mod` is the cost of one chord written from scratch in AMPL (A Mathematical Programming Language), from the physical description of the hand and not from `src/cost.c`: fingers at home, the cheapest modifier key per modifier chosen by the solver. `ampl/run [LAYOUT]` solves it with HiGHS for every chord of a layout and compares each result with `out/ergokeys score`; it needs `uv` (it builds its own venv with amplpy once). The free AMPL licence allows 2000 variables, so chords are solved 40 at a time. Result today: on the four shipped layouts every chord agrees to 0.001 mm except the chords where one finger has to press twice (cost over 188: unusable anyway); `ergokeys` starts the second press where the finger already is, the model at home. Details: [docs/DESIGN.md](docs/DESIGN.md#ampl-model).
+
 ## Examples
 
 Output of `score`, `simulate` and `suggest` on the sample files: [docs/howto.md](docs/howto.md). For example, `suggest`

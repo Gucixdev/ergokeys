@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# ampl/run - the AMPL model of the chord cost against the C binary: builds a private venv with amplpy + HiGHS once, then runs ek.py.
+#   ./run [LAYOUT] [-c WEIGHTS]     prints how many chords agree; exit 0 = all agree, 1 = some differ
+set -eu
+cd "$(dirname "$0")"
+[ -x ../out/ergokeys ] || (cd .. && make > /dev/null)
+if [ ! -x .venv/bin/python ]; then
+	command -v uv > /dev/null || { echo "ampl/run: uv is missing (needed to install amplpy)" >&2; exit 2; }
+	uv venv -q .venv
+	uv pip install -q --python .venv/bin/python amplpy
+	uv pip install -q --python .venv/bin/python --index-url https://pypi.ampl.com --extra-index-url https://pypi.org/simple ampl_module_base ampl_module_highs
+fi
+exec .venv/bin/python ek.py "$@"

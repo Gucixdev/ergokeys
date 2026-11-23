@@ -216,3 +216,11 @@ the devframework test templates (`ergokeys/Cost.lean`: the weighted distance is 
 distance and `vertical_factor` times it, the cheapest modifier choice is monotone in every weight). Not proved: the
 f64 rounding of the C code and the penalty rules, which `tests/test_model.c` checks by hand; and a proof says the model
 is consistent, not that it matches a hand.
+
+## AMPL model
+
+`ampl/chord.mod` prices a chord (modifier set plus key, fingers at home) in AMPL, written from the hand and not from `src/cost.c`: the solver picks the cheapest modifier key per modifier, which replaces the odometer loop of `step_cost`. `ampl/ek.py` reads the `.layout` file again with its own small parser, solves 40 chords per batch (free licence: 2000 variables) and compares each with `out/ergokeys score --json`. Run it with `ampl/run [LAYOUT]`.
+
+Measured 2026-11-23 with the default weights: qwerty-ansi 992 of 1088 chords agree to 0.001, qwerty-ansi-full 1320 of 1440, ortho-5x12 518 of 784 compared, split-4x6 572 of 768. Every other chord has two presses on one finger (cost at least 188); there the model charges the second press from the home point and `ergokeys` from where the finger already is, which is the more physical of the two, so the model is the one to change (not done). It does not cover sequences, `hand_span` and `finger_reach` (both off by default), or the choice of keys in `suggest`.
+
+Found on the way: the layout `ortho-5x12` defines a key `del`, which the name parser of `ergokeys` rejects as unknown (16 chords on that layout cannot be scored).
