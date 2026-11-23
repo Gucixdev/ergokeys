@@ -6,7 +6,7 @@ name ortho-5x12
 pitch 19.05
 
 row 0 0 ` 1 2 3 4 5 6 7 8 9 0 bksp
-row 1 0 tab q w e r t y u i o p del
+row 1 0 tab q w e r t y u i o p delete
 row 2 0 esc a s d f g h j k l ; enter
 row 3 0 lshift z x c v b n m , . / rshift
 key lctrl 0 4 1
@@ -27,7 +27,7 @@ finger RT ralt
 finger RI 6 y h n 7 u j m
 finger RM 8 i k ,
 finger RR 9 o l . left
-finger RP 0 p ; / bksp del enter rshift down up
+finger RP 0 p ; / bksp delete enter rshift down up
 
 home LP a
 home LR s

@@ -219,8 +219,13 @@ is consistent, not that it matches a hand.
 
 ## AMPL model
 
-`ampl/chord.mod` prices a chord (modifier set plus key, fingers at home) in AMPL, written from the hand and not from `src/cost.c`: the solver picks the cheapest modifier key per modifier, which replaces the odometer loop of `step_cost`. `ampl/ek.py` reads the `.layout` file again with its own small parser, solves 40 chords per batch (free licence: 2000 variables) and compares each with `out/ergokeys score --json`. Run it with `ampl/run [LAYOUT]`.
+Two files in `ampl/`, both written from the hand and not from `src/cost.c`:
 
-Measured 2026-11-23 with the default weights: qwerty-ansi 992 of 1088 chords agree to 0.001, qwerty-ansi-full 1320 of 1440, ortho-5x12 518 of 784 compared, split-4x6 572 of 768. Every other chord has two presses on one finger (cost at least 188); there the model charges the second press from the home point and `ergokeys` from where the finger already is, which is the more physical of the two, so the model is the one to change (not done). It does not cover sequences, `hand_span` and `finger_reach` (both off by default), or the choice of keys in `suggest`.
+- `chord.mod` prices a chord. A chord is a set of **paths**: one path per choice of physical key for each held modifier (left or right Ctrl). The presses go in a fixed order (ctrl, alt, super, shift, then the key); a finger starts at home and a second press of the same finger starts where its first one landed. The solver picks the cheapest path, which replaces the odometer loop of `step_cost`.
+- `assign.mod` is `suggest` with modifiers kept: every movable action takes one key in its own modifier set, no two actions share a chord, chords of fixed actions are reserved, minimise the weighted sum of chord costs. Only the cheapest free chords of a modifier set can matter (movable plus reserved ones there), so `ek.py` hands the solver just those; that pruning is exact.
 
-Found on the way: the layout `ortho-5x12` defines a key `del`, which the name parser of `ergokeys` rejects as unknown (16 chords on that layout cannot be scored).
+`ek.py` reads the `.layout` file with its own small parser and batches 40 chords per solve (the free AMPL licence allows 2000 variables). `ampl/run [LAYOUT]` compares every chord with `out/ergokeys score --json`; `ampl/run assign TSV` or `assign --random N --seed S` compares the optimum with `ergokeys suggest`; `ampl/check` runs all of it.
+
+Measured 2026-11-23 with the default weights: all 4096 chords of qwerty-ansi, qwerty-ansi-full, ortho-5x12 and split-4x6 agree to 0.001 mm (largest difference 0.0000), and the optimum agrees on 12 random inputs (three layouts, 20 to 80 shortcuts, about 10% fixed). The first version of the model charged a second press of one finger from home; that disagreed on every chord where a finger presses twice and was fixed by making the positions sequential, which is also what the C code does. Not covered: sequences, `hand_span` and `finger_reach` (both off by default), `--mods any`.
+
+Found on the way: the layout `ortho-5x12` named a key `del`, which the key-name parser maps to `delete`, so 16 chords could not be scored; the layout now says `delete`.

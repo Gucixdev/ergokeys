@@ -1,58 +1,72 @@
-# chord.mod - what one keyboard chord costs the hand, written in AMPL from the physical description, not from the C code.
-# A chord is a set of modifiers plus one key. Every finger starts at its home point. A modifier is held by whichever finger owns the
-# modifier key; the key is pressed by its own finger. If the layout has two keys for a modifier (left and right Ctrl) the cheapest
-# choice wins - that choice is the only decision here, so the solver makes it instead of a loop trying every combination.
-# Units: millimetres of weighted finger travel plus penalties. All weights are parameters, the same names as ergokeys' config.
+# chord.mod - what one keyboard chord costs the hand, written in AMPL (A Mathematical Programming Language) from the physical description.
+# A chord is a set of modifiers plus one key. Fingers start at their home points. The presses happen in a fixed order: the held modifiers
+# (ctrl, alt, super, shift), then the key. A finger that presses twice starts its second press where its first one left it. If the layout
+# has several keys for a modifier (left and right Ctrl) every choice is a PATH; the solver picks the cheapest path of each chord, so the
+# only decision in this file is that choice. Units: millimetres of weighted finger travel plus penalties. Weights have the names of ergokeys' config.
 
 set FINGERS;                                   # LP LR LM LI LT RT RI RM RR RP
 set KEYS;                                      # key labels of the layout
-set MODS;                                      # ctrl alt super shift
-set MODKEY {MODS} within KEYS;                 # the physical keys that give one modifier
-set ALLCHORDS;                                 # every chord (ids)
-set CHORDS within ALLCHORDS;                   # the ones priced now: chords do not depend on each other, so they can be solved in batches
+set SLOTS ordered = 1..5;                      # 1..4 the modifiers in order ctrl alt super shift, 5 the key
+set ALLCHORDS;
+set ALLPATHS;                                  # one path = one chord + one physical key for each held modifier
+set CHORDS within ALLCHORDS;                   # priced now: chords do not depend on each other, so they can be solved in batches
+set PATHS within ALLPATHS;                     # the paths of those chords
 
-param pitch;                                   # mm per key unit
+param chord {ALLPATHS} symbolic in ALLCHORDS;
+param kk {ALLPATHS, SLOTS} symbolic in KEYS, default 'none';      # the key pressed in slot s ('none' = slot not used)
+
+param pitch;
 param x {KEYS};  param y {KEYS};               # key centre, mm
 param xlo {KEYS}; param xhi {KEYS};            # leftmost / rightmost point a finger may land on
-param fing {KEYS} symbolic in FINGERS;         # the finger that presses the key
+param fing {KEYS} symbolic in FINGERS;
 param hx {FINGERS}; param hy {FINGERS};        # home point of each finger, mm
-param hand {FINGERS} in {0, 1};                # 0 left, 1 right
+param hand {FINGERS} in {0, 1};
 param pinky {FINGERS} in {0, 1};
 param ring {FINGERS} in {0, 1};
 param thumb {FINGERS} in {0, 1};
-param cm {ALLCHORDS, MODS} in {0, 1};             # chord c holds modifier m
-param ck {ALLCHORDS} symbolic in KEYS;            # the key of chord c
 
 param travel; param vertical_factor; param pen_mod_pinky; param pen_mod_ring; param pen_one_hand; param pen_far_row;
 param pen_finger_conflict; param bonus_alternate; param pen_key_pinky; param pen_key_ring;
 
-# where a finger lands on a key: the point of the key nearest to its home x, on the key's centre line
-param land {k in KEYS} = max(xlo[k], min(xhi[k], hx[fing[k]]));
-param dx {k in KEYS} = land[k] - hx[fing[k]];
-param dy {k in KEYS} = y[k] - hy[fing[k]];
-param walk {k in KEYS} = travel * sqrt(dx[k]^2 + (vertical_factor * dy[k])^2);      # weighted travel of the finger to key k
-param moves {k in KEYS} = if sqrt(dx[k]^2 + dy[k]^2) > 1e-9 then 1 else 0;
-param up {k in KEYS} = (hy[fing[k]] - y[k]) / pitch;                                   # rows above the finger's home row
+param used {p in PATHS, s in SLOTS} = if kk[p, s] = 'none' then 0 else 1;
+param finger {p in PATHS, s in SLOTS: used[p, s] = 1} symbolic in FINGERS = fing[kk[p, s]];
 
-# holding modifier key k: its travel, plus pinky/ring strain if that finger had to move
-param hold {k in KEYS} = walk[k] + moves[k] * (pinky[fing[k]] * pen_mod_pinky + ring[fing[k]] * pen_mod_ring);
-# pressing key k: its travel, the weak-finger charge, and reaching above the home row beyond one row
-param press {k in KEYS} = walk[k] + pinky[fing[k]] * pen_key_pinky + ring[fing[k]] * pen_key_ring + pen_far_row * max(0, up[k] - 1);
+# where every finger stands BEFORE slot s: home at the start, afterwards the last landing of that finger
+param xb {p in PATHS, s in SLOTS, f in FINGERS} =
+  if s = first(SLOTS) then hx[f]
+  else if used[p, prev(s)] = 1 and finger[p, prev(s)] = f then max(xlo[kk[p, prev(s)]], min(xhi[kk[p, prev(s)]], xb[p, prev(s), f]))
+  else xb[p, prev(s), f];
+param yb {p in PATHS, s in SLOTS, f in FINGERS} =
+  if s = first(SLOTS) then hy[f]
+  else if used[p, prev(s)] = 1 and finger[p, prev(s)] = f then y[kk[p, prev(s)]]
+  else yb[p, prev(s), f];
+# how many earlier presses of the same finger
+param before {p in PATHS, s in SLOTS: used[p, s] = 1} = sum {t in SLOTS: ord(t) < ord(s) and used[p, t] = 1 and finger[p, t] = finger[p, s]} 1;
 
-var pick {c in CHORDS, m in MODS, k in MODKEY[m]: cm[c, m] = 1} binary;               # which key holds modifier m
-var over {CHORDS, FINGERS} >= 0;                                                       # presses beyond the first on one finger
-var cross {CHORDS} binary;                                                             # every modifier is held by the other hand than the key
+# the press in slot s: where it lands, how far the finger walks
+param tx {p in PATHS, s in SLOTS: used[p, s] = 1} = max(xlo[kk[p, s]], min(xhi[kk[p, s]], xb[p, s, finger[p, s]]));
+param dx {p in PATHS, s in SLOTS: used[p, s] = 1} = tx[p, s] - xb[p, s, finger[p, s]];
+param dy {p in PATHS, s in SLOTS: used[p, s] = 1} = y[kk[p, s]] - yb[p, s, finger[p, s]];
+param walk {p in PATHS, s in SLOTS: used[p, s] = 1} = travel * sqrt(dx[p, s]^2 + (vertical_factor * dy[p, s])^2);
+param moved {p in PATHS, s in SLOTS: used[p, s] = 1} = if sqrt(dx[p, s]^2 + dy[p, s]^2) > 1e-9 then 1 else 0;
 
-s.t. one {c in CHORDS, m in MODS: cm[c, m] = 1}: sum {k in MODKEY[m]} pick[c, m, k] = 1;
-s.t. clash {c in CHORDS, f in FINGERS}:
-  over[c, f] >= sum {m in MODS, k in MODKEY[m]: cm[c, m] = 1 and fing[k] = f} pick[c, m, k] + (if fing[ck[c]] = f then 1 else 0) - 1;
-s.t. crossnot {c in CHORDS, m in MODS, k in MODKEY[m]: cm[c, m] = 1 and hand[fing[k]] = hand[fing[ck[c]]]}: cross[c] <= 1 - pick[c, m, k];
-s.t. crossnone {c in CHORDS: sum {m in MODS} cm[c, m] = 0}: cross[c] = 0;
+param keyfinger {p in PATHS} symbolic in FINGERS = finger[p, 5];
+param up {p in PATHS} = (hy[keyfinger[p]] - y[kk[p, 5]]) / pitch;           # rows above the key finger's home row
+param nmods {p in PATHS} = sum {s in 1..4} used[p, s];
+param samehand {p in PATHS} = sum {s in 1..4: used[p, s] = 1 and hand[finger[p, s]] = hand[keyfinger[p]]} 1;
+param allcross {p in PATHS} = if nmods[p] > 0 and samehand[p] = 0 then 1 else 0;
 
-# the cost of a chord; a modifier on a non-thumb finger of the key's own hand costs pen_one_hand extra
-var cost {c in CHORDS} = press[ck[c]]
-  + sum {m in MODS, k in MODKEY[m]: cm[c, m] = 1} pick[c, m, k] * (hold[k] + (if hand[fing[k]] = hand[fing[ck[c]]] and thumb[fing[k]] = 0 then pen_one_hand else 0))
-  + pen_finger_conflict * sum {f in FINGERS} over[c, f]
-  - bonus_alternate * cross[c];
+# a held modifier: walk + strain of a pinky or ring that had to move + a second press of the finger + the same-hand penalty (not for the thumb)
+param modcost {p in PATHS, s in 1..4: used[p, s] = 1} = walk[p, s]
+  + moved[p, s] * (pinky[finger[p, s]] * pen_mod_pinky + ring[finger[p, s]] * pen_mod_ring)
+  + (if before[p, s] > 0 then pen_finger_conflict else 0)
+  + (if hand[finger[p, s]] = hand[keyfinger[p]] and thumb[finger[p, s]] = 0 then pen_one_hand else 0);
+# the key: walk + weak-finger charge + reaching above the home row beyond one row + a second press - the all-cross bonus
+param keycost {p in PATHS} = walk[p, 5] + pinky[keyfinger[p]] * pen_key_pinky + ring[keyfinger[p]] * pen_key_ring
+  + pen_far_row * max(0, up[p] - 1) + (if before[p, 5] > 0 then pen_finger_conflict else 0) - bonus_alternate * allcross[p];
+param pathcost {p in PATHS} = keycost[p] + sum {s in 1..4: used[p, s] = 1} modcost[p, s];
 
+var take {PATHS} binary;
+s.t. one {c in CHORDS}: sum {p in PATHS: chord[p] = c} take[p] = 1;
+var cost {c in CHORDS} = sum {p in PATHS: chord[p] = c} pathcost[p] * take[p];
 minimize total: sum {c in CHORDS} cost[c];

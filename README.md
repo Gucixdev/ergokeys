@@ -36,7 +36,7 @@ invalid, 3 `--strict` found skipped lines or conflicts, 4 `suggest` found no con
 
 ## AMPL model
 
-`ampl/chord.mod` is the cost of one chord written from scratch in AMPL (A Mathematical Programming Language), from the physical description of the hand and not from `src/cost.c`: fingers at home, the cheapest modifier key per modifier chosen by the solver. `ampl/run [LAYOUT]` solves it with HiGHS for every chord of a layout and compares each result with `out/ergokeys score`; it needs `uv` (it builds its own venv with amplpy once). The free AMPL licence allows 2000 variables, so chords are solved 40 at a time. Result today: on the four shipped layouts every chord agrees to 0.001 mm except the chords where one finger has to press twice (cost over 188: unusable anyway); `ergokeys` starts the second press where the finger already is, the model at home. Details: [docs/DESIGN.md](docs/DESIGN.md#ampl-model).
+The cost model exists a second time, written from scratch in AMPL (A Mathematical Programming Language) and solved with HiGHS, in [ampl/](ampl/): `chord.mod` prices every chord of a layout from the physical description of the hand, `assign.mod` is `suggest` (modifiers kept) as an exact assignment problem. `ampl/check` compares both with the C binary: every chord of the four shipped layouts agrees to 0.001 mm (4096 chords), and on 12 random inputs of 20 to 80 shortcuts (some fixed) the optimum of the model equals what `suggest` finds, to four decimals. It needs `uv` (builds its own venv with amplpy once) and takes about 20 seconds. The model is the reference: a new term goes into the `.mod` first, is checked against the C code, and only then written in C. Details: [docs/DESIGN.md](docs/DESIGN.md#ampl-model).
 
 ## Examples
 

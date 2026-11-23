@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# ampl/check - everything the AMPL models promise, in one go: the chord cost on all four layouts, and the exact optimum of `suggest` on random inputs.
+# Exit 0 = ergokeys agrees with the models everywhere. Needs uv (see ./run), takes about a minute.
+set -u
+cd "$(dirname "$0")" || exit 2
+bad=0
+for l in qwerty-ansi qwerty-ansi-full ortho-5x12 split-4x6; do
+	if out=$(./run "$l" 2> /dev/null); then
+		printf '%s\n' "$out" | grep -E '^layout'
+	else
+		printf 'FAIL chord cost on %s\n%s\n' "$l" "$out" | head -8
+		bad=1
+	fi
+done
+for l in qwerty-ansi ortho-5x12 split-4x6; do
+	for s in 1 2 3 4; do
+		if out=$(./run assign --random $((s * 20)) --seed "$s" -l "$l" 2> /dev/null); then
+			printf '%s: %s\n' "$l" "$(printf '%s\n' "$out" | grep 'AMPL optimum')"
+		else
+			printf 'FAIL assign on %s seed %s: %s\n' "$l" "$s" "$(printf '%s\n' "$out" | grep 'AMPL optimum')"
+			bad=1
+		fi
+	done
+done
+if [ "$bad" -eq 0 ]; then echo "all agree"; else echo "DIFFERENCES FOUND"; fi
+exit "$bad"
