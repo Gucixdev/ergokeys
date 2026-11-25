@@ -98,6 +98,3 @@ Not done or not verified:
 ## License
 
 MIT, see [LICENSE](LICENSE).
-
----
-
